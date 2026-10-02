@@ -63,6 +63,16 @@ im Diagramm stehen dieselben Grenzen für die Nachbarkurven in der Funktion am A
 [`dashboards/karten/heizkurve.yaml`](../dashboards/karten/heizkurve.yaml), Karte
 `custom:plotly-graph`.
 
+Sommerbetrieb, echte Werte. Der gelbe Punkt sitzt auf der Kurve, weil die Wärmepumpe nicht
+heizt:
+
+![Heizkurven-Diagramm im Sommerbetrieb](bilder/heizkurve-diagramm.png)
+
+Heizbetrieb, für die Aufnahme simulierte Werte (außen −3 °C). Der gelbe Punkt ist der Sollwert
+der Wärmepumpe, der grüne der Istwert:
+
+![Heizkurven-Diagramm im Heizbetrieb, Beispielwerte](bilder/heizkurve-diagramm-beispiel.png)
+
 - **Orange Linie:** die aktuell eingestellte Heizkurve.
 - **Graue Linien:** Nachbarkurven mit Endpunkt ±4 K, als Orientierung beim Verstellen.
 - **Gestrichelte Linie:** die Kurve ohne Parallelverschiebung. Erscheint nur, wenn die

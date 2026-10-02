@@ -15,6 +15,10 @@ Schritt für Schritt in [`docs/vorgehen.md`](docs/vorgehen.md).
 **Kein offizielles Dimplex-Projekt.** Nutzung auf eigene Verantwortung, siehe
 [Sicherheitshinweis](#sicherheitshinweis).
 
+![Dashboard, Ansicht Übersicht](docs/bilder/uebersicht.png)
+
+Weitere Ansichten: [Bilder](#bilder)
+
 ## Was enthalten ist
 
 - **Modbus-Sensoren** für Temperaturen, Betriebszustände, Zähler, Wärmemengen und Leistungen.
@@ -50,6 +54,21 @@ Schritt für Schritt in [`docs/vorgehen.md`](docs/vorgehen.md).
 Andere Dimplex-Geräte und andere Softwarestände des Wärmepumpenmanagers (H, J, L) können
 abweichende Register haben. Ungeprüft übernehmen sollte man nichts, vor allem keine
 Schreibzugriffe.
+
+## Bilder
+
+Aufnahmen der Ursprungsanlage vom 3. Oktober 2026, Sommerbetrieb, Wärmepumpe im Standby.
+
+| Heizkreis mit Heizkurve | Kältekreis |
+|---|---|
+| ![Ansicht Heizkreis](docs/bilder/heizkreis.png) | ![Ansicht Kältekreis](docs/bilder/kaeltekreis.png) |
+| **Warmwasser** | **Energie** |
+| ![Ansicht Warmwasser](docs/bilder/warmwasser.png) | ![Ansicht Energie](docs/bilder/energie.png) |
+| **Wartung** | **Heizkurve im Heizbetrieb (Beispiel)** |
+| ![Ansicht Wartung](docs/bilder/wartung.png) | ![Heizkurven-Diagramm mit Beispielwerten](docs/bilder/heizkurve-diagramm-beispiel.png) |
+
+Das Beispielbild der Heizkurve zeigt simulierte Werte (außen −3 °C), weil die Anlage zum
+Zeitpunkt der Aufnahmen nicht heizte. Alle anderen Bilder zeigen echte Werte.
 
 ## Einbau in Kurzform
 
@@ -159,6 +178,7 @@ docs/
   modbus-register.md        Adressregel und undokumentierte Register
   heizkurve.md              Formel, Messpunkte, Diagramm
   bekannte-grenzen.md       Einschränkungen und Fallstricke
+  bilder/                   Aufnahmen des Dashboards
 tools/
   dimplex_scan.py           Register-Scan (nur lesend)
 secrets.yaml.example        Vorlage für die eigene secrets.yaml
