@@ -1,14 +1,14 @@
 # Dimplex System M in Home Assistant
 
 > **English summary:** Home Assistant configuration for a Dimplex System M air/water heat pump
-> connected via Modbus TCP (NWPM Touch gateway): Modbus sensors including several registers that
+> connected via Modbus TCP through the NWPM Touch extension module: Modbus sensors including several registers that
 > are missing from the official data point lists (refrigerant pressures, system pressure, flow
 > rate, inverter frequency), template sensors, write access for operating mode, hot water
 > setpoint and heating curve, a six-view dashboard and a live heating-curve chart.
 > Tested on exactly one unit (software M3.15). Documentation is in German.
 
 Home-Assistant-Konfiguration für eine Luft/Wasser-Wärmepumpe **Dimplex System M**, angebunden
-über Modbus TCP. Das Projekt ist an einer einzelnen Anlage entstanden und wird hier so
+über Modbus TCP mit der **NWPM Touch-Erweiterung**. Das Projekt ist an einer einzelnen Anlage entstanden und wird hier so
 veröffentlicht, wie es dort läuft. Wie die Register gefunden und die Teile gebaut wurden, steht
 Schritt für Schritt in [`docs/vorgehen.md`](docs/vorgehen.md).
 
@@ -47,13 +47,40 @@ Weitere Ansichten: [Bilder](#bilder)
 |---|---|
 | Wärmepumpe | Dimplex System M (M Flex, reversibel), Fußbodenheizung, ein Heizkreis, Warmwasser |
 | Regler | WPM (pCOoem M), Software M3.15a04, Kältekreismodul uPC2 S |
-| Anbindung | NWPM Touch, Modbus TCP, Port 502, Unit 1 |
+| Anbindung | NWPM Touch-Erweiterung (Dimplex-Artikel 378800), Modbus TCP, Port 502, Unit 1 |
 | Home Assistant | Core 2026.9, Home Assistant OS |
 | Karten | plotly-graph-card 3.3.5, apexcharts-card 2.2.3, lovelace-heat-pump-card 0.9.2, card-mod 4.2.1 |
 
 Andere Dimplex-Geräte und andere Softwarestände des Wärmepumpenmanagers (H, J, L) können
 abweichende Register haben. Ungeprüft übernehmen sollte man nichts, vor allem keine
 Schreibzugriffe.
+
+## Voraussetzung: NWPM Touch-Erweiterung mit Modbus TCP
+
+Das Projekt ist für Anlagen geschrieben, die über die **NWPM Touch-Erweiterung** im Netzwerk
+hängen. Das ist das Netzwerkmodul, das im Wärmepumpenmanager im Steckplatz „Serial Card/BMS
+Card" sitzt. Modbus TCP ist dort nicht von selbst aktiv, es muss einmal in der Weboberfläche des
+Moduls freigegeben werden:
+
+1. IP-Adresse des Moduls am Display unter „Analytics" ablesen.
+2. Im Browser `https://<IP-Adresse>/` öffnen. Das `https://` muss davorstehen. Die Warnung „Dies
+   ist keine sichere Verbindung" über „Erweitert" → „Weiter zu … (unsicher)" bestätigen.
+3. Anmelden mit Benutzer `admin`. Das Passwort zeigt das Display unter Analytics → Hard- und
+   Software → Netzwerk → Gateway Zugang.
+4. In der Weboberfläche „Einstellungen" öffnen und in der Kachel „Gateway Zugang" die
+   Netzwerkdienste freigeben.
+5. Neu starten und danach prüfen, ob die Freigabe noch gesetzt ist.
+
+Danach ist Modbus TCP auf Port 502 erreichbar. An der Ursprungsanlage laufen Modbus TCP und die
+Dimplex Home App gleichzeitig; die App muss dafür nicht abgeschaltet werden.
+
+Die Schritte stammen aus dem Dimplex-Wiki:
+[Modbus TCP Anbindung](https://dimplex.atlassian.net/wiki/spaces/DW/pages/3303571457) und
+[NWPM Touch-Erweiterung](https://dimplex.atlassian.net/wiki/spaces/DW/pages/3017506817). Dort
+stehen auch die Mindeststände: WPM-Software ab M3.3, Firmware ab A2.1.0 – B2.1.0.
+
+Mit denselben Zugangsdaten lässt sich die Verlaufsdatenbank herunterladen, aus der die
+undokumentierten Register stammen (siehe [`docs/vorgehen.md`](docs/vorgehen.md)).
 
 ## Bilder
 
@@ -72,13 +99,14 @@ Zeitpunkt der Aufnahmen nicht heizte. Alle anderen Bilder zeigen echte Werte.
 
 ## Einbau in Kurzform
 
-1. Pakete in der `configuration.yaml` einschalten.
-2. Die drei Dateien aus `packages/` nach `/config/packages/` kopieren.
-3. Adresse der Wärmepumpe in die `secrets.yaml` eintragen (Vorlage:
+1. Modbus TCP an der NWPM Touch-Erweiterung freigeben (siehe oben).
+2. Pakete in der `configuration.yaml` einschalten.
+3. Die drei Dateien aus `packages/` nach `/config/packages/` kopieren.
+4. Adresse der Wärmepumpe in die `secrets.yaml` eintragen (Vorlage:
    [`secrets.yaml.example`](secrets.yaml.example)).
-4. Alle Stellen mit `# TODO: Anpassen` durchgehen.
-5. Konfiguration prüfen, Home Assistant neu starten, Werte mit dem Display vergleichen.
-6. Karten über HACS installieren und das Dashboard einfügen.
+5. Alle Stellen mit `# TODO: Anpassen` durchgehen.
+6. Konfiguration prüfen, Home Assistant neu starten, Werte mit dem Display vergleichen.
+7. Karten über HACS installieren und das Dashboard einfügen.
 
 Ausführlich: [`docs/installation.md`](docs/installation.md)
 
@@ -106,7 +134,7 @@ Persönliche Daten sind durch Platzhalter ersetzt. Vor dem Einsatz ausfüllen:
 
 | Platzhalter | Wo | Was hinein muss |
 |---|---|---|
-| `!secret dimplex_modbus_host` | `packages/dimplex_modbus.yaml` | IP-Adresse des NWPM Touch, als Eintrag in der eigenen `secrets.yaml` |
+| `!secret dimplex_modbus_host` | `packages/dimplex_modbus.yaml` | IP-Adresse der NWPM Touch-Erweiterung, als Eintrag in der eigenen `secrets.yaml` |
 | `notify.mobile_app_dein_geraet` | `dimplex_steuerung.yaml`, `dimplex_helfer.yaml` | eigener Benachrichtigungsdienst, z. B. `notify.mobile_app_<gerätename>` |
 | `sensor.shellyem3_xxxxxxxxxxxx_channel_a_power` (und `_b_`, `_c_`) | `dimplex_steuerung.yaml`, `dashboards/heizung.yaml` | eigene Leistungssensoren der Strommessung an der Wärmepumpe, je Phase |
 

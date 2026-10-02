@@ -5,12 +5,50 @@ Dashboard.
 
 ## 1. Voraussetzungen
 
-- Wärmepumpe mit NWPM Touch im Heimnetz, Modbus TCP erreichbar (Port 502).
-- Feste IP-Adresse für das NWPM Touch, am einfachsten als feste Zuordnung im Router.
+- Wärmepumpe mit **NWPM Touch-Erweiterung** im Heimnetz (Dimplex-Artikel 378800, sitzt im
+  Wärmepumpenmanager im Steckplatz „Serial Card/BMS Card"). Laut Dimplex-Wiki ab WPM-Software
+  M3.3 und Firmware A2.1.0 – B2.1.0.
+- Feste IP-Adresse für das Modul, am einfachsten als feste Zuordnung im Router.
 - Home Assistant mit Zugriff auf `/config` (File editor, Studio Code Server oder Samba).
 
-Modbus TCP verträgt bei diesem Gateway nur wenige gleichzeitige Verbindungen. Wenn schon ein
-anderes System per Modbus an der Wärmepumpe hängt, kann es zu Aussetzern kommen.
+### Modbus TCP freigeben
+
+Modbus TCP ist an der NWPM Touch-Erweiterung nicht von selbst aktiv. Einmalig in der
+Weboberfläche des Moduls freigeben:
+
+1. **IP-Adresse ablesen:** am Display der Wärmepumpe im Menü „Analytics".
+2. **Weboberfläche öffnen:** im Browser `https://<IP-Adresse>/` eingeben. Das `https://` muss
+   davorstehen, sonst kommt keine Verbindung zustande. Der Browser meldet „Dies ist keine
+   sichere Verbindung", weil das Modul ein eigenes Zertifikat verwendet: „Erweitert" wählen,
+   dann „Weiter zu … (unsicher)".
+3. **Anmelden:** Benutzer `admin`. Das Passwort steht am Display unter
+   Analytics → Hard- und Software → Netzwerk → Gateway Zugang.
+4. **Freigeben:** in der Weboberfläche „Einstellungen" öffnen, in der Kachel „Gateway Zugang"
+   die Netzwerkdienste freigeben.
+5. **Neu starten** und danach nachsehen, ob die Freigabe noch gesetzt ist.
+
+Danach antwortet das Modul auf Modbus TCP, Port 502. In diesem Projekt wird Unit 1 (`slave: 1`)
+verwendet.
+
+Quelle der Schritte: Dimplex-Wiki,
+[Modbus TCP Anbindung](https://dimplex.atlassian.net/wiki/spaces/DW/pages/3303571457) und
+[NWPM Touch-Erweiterung](https://dimplex.atlassian.net/wiki/spaces/DW/pages/3017506817).
+
+### Modbus und App nebeneinander
+
+An der Ursprungsanlage laufen Modbus TCP und die Dimplex Home App gleichzeitig. Die
+Cloud-Anbindung lässt sich in derselben Kachel („Gateway Zugang" → „Cloud Sync") ein- und
+ausschalten, muss für Modbus aber nicht aus sein. Die App ist beim Einrichten nützlich: Jeder
+Wert aus Home Assistant lässt sich dort gegenprüfen.
+
+Ob mehrere Modbus-Clients gleichzeitig funktionieren (zum Beispiel Home Assistant und ein
+Energiemanager), ist an der Ursprungsanlage nicht getestet.
+
+### Zugangsdaten für die Verlaufsdatenbank
+
+Dieselbe Anmeldung gilt für den Download der Verlaufsdatenbank unter
+`https://<IP-Adresse>/usr-cgi/downloadTelemetryData.cgi`. Wozu sie gut ist, steht in
+[`vorgehen.md`](vorgehen.md).
 
 ## 2. Pakete einschalten
 
@@ -33,7 +71,7 @@ geladen.
 2. In die eigene `/config/secrets.yaml` eintragen (Vorlage: `secrets.yaml.example`):
 
    ```yaml
-   dimplex_modbus_host: 192.168.x.x  # TODO: Anpassen - IP des NWPM Touch
+   dimplex_modbus_host: 192.168.x.x  # TODO: Anpassen - IP der NWPM Touch-Erweiterung
    ```
 
 3. Entwicklerwerkzeuge → YAML → Konfiguration prüfen, dann Home Assistant neu starten.

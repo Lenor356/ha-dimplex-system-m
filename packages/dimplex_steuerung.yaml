@@ -32,7 +32,7 @@ template:
       # WÄRMEMENGEN
       # Stellenweise Ablage: 1_4 = Stellen 1-4, 5_8 = Stellen 5-8,
       # 9_12 = Stellen 9-12. Formel laut Dimplex-Doku, am Display verifiziert.
-      # Liefert das Gateway kurz ueberall 0 (Neustart des NWPM Touch), wird der
+      # Liefert das Gateway kurz ueberall 0 (Neustart der NWPM Touch-Erweiterung), wird der
       # Sensor "nicht verfuegbar" statt 0. Sonst wertet die Langzeitstatistik
       # das als Zaehlerreset und addiert danach den vollen Stand noch einmal.
       # =====================================================================

@@ -9,7 +9,7 @@ selbst finden.
 | Werkzeug | Wofür |
 |---|---|
 | Home Assistant OS, eingebaute Modbus-Integration | Lesen und Schreiben der Register |
-| NWPM Touch der Wärmepumpe | Modbus-TCP-Gateway, Verlaufsdatenbank |
+| NWPM Touch-Erweiterung der Wärmepumpe | Modbus-TCP-Zugang, Weboberfläche, Verlaufsdatenbank |
 | Display der Wärmepumpe und Dimplex Home App | Gegenprobe für jeden gefundenen Wert |
 | Python 3, [`tools/dimplex_scan.py`](../tools/dimplex_scan.py) | Register und Coils auslesen, Scans vergleichen, Werte suchen |
 | ein SQLite-Werkzeug (DB Browser for SQLite oder Python) | Verlaufsdatenbank auswerten |
@@ -67,14 +67,14 @@ Bewährtes Vorgehen:
 
 ## 3. Die Verlaufsdatenbank als Abkürzung
 
-Das NWPM Touch speichert einen Verlauf und gibt ihn als SQLite-Datei heraus:
+Die NWPM Touch-Erweiterung speichert einen Verlauf und gibt ihn als SQLite-Datei heraus:
 
 ```
 https://<IP-des-NWPM-Touch>/usr-cgi/downloadTelemetryData.cgi
 ```
 
-Die Zugangsdaten zeigt das Display unter Analytics → Hard- und Software → Netzwerk → Gateway
-Zugang.
+Anmeldung wie an der Weboberfläche: Benutzer `admin`, das Passwort zeigt das Display unter
+Analytics → Hard- und Software → Netzwerk → Gateway Zugang.
 
 Die Datei enthält eine Tabelle `telemetry_history` mit den Spalten `name`, `value` und `time`
 (Millisekunden seit 1970). `name` ist die Kennung des Datenpunkts, zum Beispiel `1280a` oder
@@ -121,8 +121,7 @@ Ein Eintrag im Modbus-Paket sieht so aus:
 Was sich bewährt hat:
 
 - **Abfrageintervalle versetzen.** Jeder Sensor hat ein anderes `scan_interval`, meist eine
-  Primzahl. So fallen die Abfragen nicht auf denselben Moment, und das Gateway bleibt
-  ansprechbar. Schnelle Werte (Drücke, Leistung) alle 30 bis 60 Sekunden, Zähler alle 10 Minuten.
+  Primzahl. So fallen die Abfragen nicht auf denselben Moment. Schnelle Werte (Drücke, Leistung) alle 30 bis 60 Sekunden, Zähler alle 10 Minuten.
 - **`int16` für alles, was negativ werden kann** (Temperaturen, Umweltleistung beim Abtauen).
 - **Temperaturdifferenzen ohne `device_class`.** Sonst rechnet Home Assistant Kelvin in Grad
   Celsius um und zieht 273 ab.

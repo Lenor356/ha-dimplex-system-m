@@ -8,9 +8,9 @@ vollständige Liste aller Datenpunkte aus [`packages/dimplex_modbus.yaml`](../pa
 
 - Register-Scan mit [`tools/dimplex_scan.py`](../tools/dimplex_scan.py) (nur lesend), einmal bei
   stehender und einmal bei laufender Wärmepumpe, danach Vergleich der beiden Scans.
-- Verlaufsdatenbank des NWPM Touch. Sie lässt sich am Gerät herunterladen:
-  `https://<IP-des-NWPM-Touch>/usr-cgi/downloadTelemetryData.cgi`. Die Zugangsdaten zeigt das
-  Display unter Analytics → Hard- und Software → Netzwerk → Gateway Zugang. Die Datei ist eine
+- Verlaufsdatenbank der NWPM Touch-Erweiterung. Sie lässt sich am Gerät herunterladen:
+  `https://<IP-des-NWPM-Touch>/usr-cgi/downloadTelemetryData.cgi`. Benutzer ist `admin`, das
+  Passwort zeigt das Display unter Analytics → Hard- und Software → Netzwerk → Gateway Zugang. Die Datei ist eine
   SQLite-Datenbank mit den Datenpunkten samt Kennung.
 - Abgleich der Werte mit Display und Dimplex Home App.
 
@@ -190,4 +190,4 @@ der Verlaufsdatenbank und werden im Paket nicht verwendet.
 
 - Die inoffizielle REST-Schnittstelle `/api/v2/…` am Display ist seit einem Firmware-Update
   gesperrt.
-- Das MQTT-Gateway des NWPM Touch wurde nicht getestet.
+- Das MQTT-Gateway der NWPM Touch-Erweiterung wurde nicht getestet.

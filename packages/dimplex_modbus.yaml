@@ -5,10 +5,12 @@
 # Hub "dimplex_wp" mit allen Sensoren und Binärsensoren. Diese Datei liest nur,
 # sie schreibt nichts in die Wärmepumpe.
 #
-# Getestet an: Dimplex System M, WPM-Software M3.15a, NWPM Touch.
+# Getestet an: Dimplex System M, WPM-Software M3.15a, NWPM Touch-Erweiterung.
+# Modbus TCP muss an der NWPM Touch-Erweiterung freigegeben sein
+# (Weboberfläche -> Einstellungen -> Gateway Zugang), siehe docs/installation.md.
 #
 # VOR DEM EINSATZ ANPASSEN:
-#   - secrets.yaml: dimplex_modbus_host: <IP-Adresse des NWPM Touch>
+#   - secrets.yaml: dimplex_modbus_host: <IP-Adresse der NWPM Touch-Erweiterung>
 #     (Vorlage: secrets.yaml.example)
 #
 # Wer in der configuration.yaml schon einen "modbus:"-Abschnitt hat, kann den
@@ -24,7 +26,7 @@
 # offiziellen Dimplex-Liste. Mehr dazu: docs/modbus-register.md
 #
 # scan_interval: bewusst lauter verschiedene (Prim-)Zahlen, damit nicht alle
-# Abfragen im selben Moment anstehen. Das Gateway verträgt keine Abfrageflut.
+# Abfragen im selben Moment anstehen.
 ###############################################################################
 
 modbus:
@@ -404,7 +406,7 @@ modbus:
         scan_interval: 199
 
       # =========================================================================
-      # UNDOKUMENTIERTE DATENPUNKTE (Scan + Verlaufsdaten NWPM Touch, Oktober 2026)
+      # UNDOKUMENTIERTE DATENPUNKTE (Scan + Verlaufsdaten der NWPM Touch-Erweiterung, Oktober 2026)
       # Regel: Kennung "Na" = Register N, Kennung "Ni" = Register N + 5001
       # scan_interval bewusst versetzt, damit nicht alles gleichzeitig abgefragt wird
       # =========================================================================
