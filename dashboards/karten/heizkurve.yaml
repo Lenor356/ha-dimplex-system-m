@@ -1,0 +1,252 @@
+###############################################################################
+# HEIZKURVEN-DIAGRAMM als einzelne Karte (custom:plotly-graph, ab v3.3)
+#
+# Zeigt die Heizkurve der Dimplex-Wärmepumpe über der Außentemperatur, dazu
+# bei der aktuellen Außentemperatur den Sollwert (gelb) und den Istwert (grün).
+# Erklärung und Formel: docs/heizkurve.md
+#
+# Einbau: Karte hinzufügen -> "Manuell" -> Inhalt dieser Datei einfügen.
+#
+# Benötigte Entitäten (aus packages/dimplex_modbus.yaml und
+# packages/dimplex_steuerung.yaml):
+#   sensor.dimplex_wp_temperatur_aussentemperatur
+#   sensor.dimplex_wp_heizkurve_endpunkt_lesen
+#   sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen
+#   sensor.dimplex_wp_temperatur_ruecklauf_soll
+#   sensor.dimplex_wp_temperatur_ruecklauf
+#   input_number.dimplex_hk1_heizkurve_endpunkt   (Rückfall)
+#   input_number.dimplex_hk1_heizkurve_parallel   (Rückfall)
+#
+# Die Zeile "card_mod:" am Ende braucht card-mod; ohne card-mod löschen.
+# Die Karte zeichnet nur in einem sichtbaren Browser-Tab.
+###############################################################################
+config:
+  displayModeBar: false
+  scrollZoom: false
+disable_pinch_to_zoom: true
+entities:
+  - entity: sensor.dimplex_wp_temperatur_aussentemperatur
+    fn: |-
+      $fn ({ hass, vars }) => {
+        const num = (id, fb) => { const s = hass.states[id]; const n = s ? parseFloat(s.state) : NaN; return Number.isFinite(n) ? n : fb; };
+        const ep = num('sensor.dimplex_wp_heizkurve_endpunkt_lesen', num('input_number.dimplex_hk1_heizkurve_endpunkt', null));
+        const pv = num('sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen', num('input_number.dimplex_hk1_heizkurve_parallel', 0));
+        const ta = num('sensor.dimplex_wp_temperatur_aussentemperatur', null);
+        const sollWp = num('sensor.dimplex_wp_temperatur_ruecklauf_soll', null);
+        const ist = num('sensor.dimplex_wp_temperatur_ruecklauf', null);
+        const P = 0.733;
+        const f = (t, e) => 20 + (e - 20) * Math.pow(Math.min(1, Math.max(0, (20 - t) / 40)), P);
+        const xs = []; for (let t = 20; t >= -20; t -= 1) xs.push(t);
+        const ok = ep !== null;
+        const de = (n, d = 1) => n.toFixed(d).replace('.', ',').replace('-', '−');
+        const lo = ok && Math.max(22, ep - 4) < ep ? Math.max(22, ep - 4) : null;
+        const hi = ok && Math.min(40, ep + 4) > ep ? Math.min(40, ep + 4) : null;
+        const heizt = sollWp !== null && sollWp >= 18;
+        const yKurve = ok && ta !== null ? f(ta, ep) + pv : null;
+        const yNow = ta === null ? null : (heizt ? sollWp : yKurve);
+        const xMax = Math.max(22, (ta ?? 20) + 2);
+        const xMin = Math.min(-22, (ta ?? -20) - 2);
+        const yMin = Math.min(18, 20 + pv - 2);
+        const yMax = Math.max(30, (hi ?? ep ?? 28) + pv + 2);
+        const istOk = ist !== null && ta !== null;
+        const istPlot = istOk ? Math.min(yMax - 0.4, Math.max(yMin + 0.4, ist)) : null;
+        const istSym = !istOk ? 'circle' : (ist > yMax - 0.4 ? 'triangle-up' : (ist < yMin + 0.4 ? 'triangle-down' : 'circle'));
+        vars.hk = { ep, pv, ta, sollWp, ist, f, xs, ok, de, lo, hi, heizt, yKurve, yNow, istPlot, istSym, xMax, xMin, yMin, yMax };
+      }
+    internal: true
+  - entity: sensor.dimplex_wp_heizkurve_endpunkt_lesen
+    internal: true
+  - entity: sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen
+    internal: true
+  - entity: sensor.dimplex_wp_temperatur_ruecklauf_soll
+    internal: true
+  - entity: sensor.dimplex_wp_temperatur_ruecklauf
+    internal: true
+  - entity: ''
+    hoverinfo: skip
+    line:
+      color: rgba(176,190,197,0.45)
+      shape: spline
+      width: 1.5
+    mode: lines+text
+    name: flacher
+    showlegend: false
+    text: '$ex vars.hk.lo !== null ? vars.hk.xs.map((t, i, a) => i === a.length - 1 ? ''Endpunkt '' + vars.hk.lo + '' °C'' : '''') : []'
+    textfont:
+      color: rgba(176,190,197,0.9)
+      size: 11
+    textposition: bottom left
+    x: '$ex vars.hk.lo !== null ? vars.hk.xs : []'
+    y: '$ex vars.hk.lo !== null ? vars.hk.xs.map(t => vars.hk.f(t, vars.hk.lo) + vars.hk.pv) : []'
+  - entity: ''
+    hoverinfo: skip
+    line:
+      color: rgba(176,190,197,0.45)
+      shape: spline
+      width: 1.5
+    mode: lines+text
+    name: steiler
+    showlegend: false
+    text: '$ex vars.hk.hi !== null ? vars.hk.xs.map((t, i, a) => i === a.length - 1 ? ''Endpunkt '' + vars.hk.hi + '' °C'' : '''') : []'
+    textfont:
+      color: rgba(176,190,197,0.9)
+      size: 11
+    textposition: top left
+    x: '$ex vars.hk.hi !== null ? vars.hk.xs : []'
+    y: '$ex vars.hk.hi !== null ? vars.hk.xs.map(t => vars.hk.f(t, vars.hk.hi) + vars.hk.pv) : []'
+  - entity: ''
+    hoverinfo: skip
+    line:
+      color: rgba(255,255,255,0.55)
+      dash: dash
+      shape: spline
+      width: 2
+    mode: lines
+    name: ohne Parallelverschiebung
+    showlegend: $ex vars.hk.ok && vars.hk.pv !== 0
+    x: '$ex vars.hk.ok && vars.hk.pv !== 0 ? vars.hk.xs : []'
+    y: '$ex vars.hk.ok && vars.hk.pv !== 0 ? vars.hk.xs.map(t => vars.hk.f(t, vars.hk.ep)) : []'
+  - entity: ''
+    fill: tozeroy
+    fillcolor: rgba(255,112,67,0.10)
+    hovertemplate: Außen %{x:.0f} °C<br>Soll %{y:.1f} °C<extra></extra>
+    line:
+      color: '#FF7043'
+      shape: spline
+      width: 4
+    mode: lines
+    name: Heizkurve
+    x: '$ex vars.hk.ok ? vars.hk.xs : []'
+    y: '$ex vars.hk.ok ? vars.hk.xs.map(t => vars.hk.f(t, vars.hk.ep) + vars.hk.pv) : []'
+  - entity: ''
+    hoverinfo: skip
+    line:
+      color: rgba(255,202,40,0.8)
+      dash: dot
+      shape: linear
+      width: 1
+    mode: lines
+    name: Hilfslinie
+    showlegend: false
+    x: '$ex vars.hk.yNow === null ? [] : [vars.hk.ta, vars.hk.ta, vars.hk.xMax]'
+    y: '$ex vars.hk.yNow === null ? [] : [vars.hk.yMin, vars.hk.yNow, vars.hk.yNow]'
+  - entity: ''
+    name: Abweichung
+    showlegend: false
+    hoverinfo: skip
+    mode: lines
+    line:
+      shape: linear
+      width: 2
+      dash: dot
+      color: rgba(102,187,106,0.75)
+    x: '$ex vars.hk.yNow === null || vars.hk.istPlot === null ? [] : [vars.hk.ta, vars.hk.ta]'
+    y: '$ex vars.hk.yNow === null || vars.hk.istPlot === null ? [] : [vars.hk.yNow, vars.hk.istPlot]'
+  - entity: ''
+    name: Soll
+    mode: markers
+    marker:
+      symbol: circle
+      size: 17
+      color: '#FFCA28'
+      line:
+        color: '#ffffff'
+        width: 2
+    hovertemplate: Soll %{y:.1f} °C<extra></extra>
+    x: '$ex vars.hk.yNow === null ? [] : [vars.hk.ta]'
+    y: '$ex vars.hk.yNow === null ? [] : [vars.hk.yNow]'
+  - entity: ''
+    name: Ist
+    mode: markers
+    marker:
+      symbol: $ex vars.hk.istSym
+      size: 11
+      color: '#66BB6A'
+      line:
+        color: '#ffffff'
+        width: 2
+    text: '$ex vars.hk.istPlot === null ? [] : [vars.hk.de(vars.hk.ist) + '' °C'']'
+    hovertemplate: Ist %{text}<extra></extra>
+    x: '$ex vars.hk.istPlot === null ? [] : [vars.hk.ta]'
+    y: '$ex vars.hk.istPlot === null ? [] : [vars.hk.istPlot]'
+grid_options:
+  columns: full
+hours_to_show: 1
+layout:
+  annotations:
+    - align: left
+      arrowcolor: '#FFCA28'
+      arrowhead: 0
+      arrowwidth: 2
+      ax: '$ex (vars.hk.ta ?? 0) < 5 ? -140 : 110'
+      ay: '$ex (vars.hk.ta ?? 0) < 5 ? -90 : -150'
+      bgcolor: '#FFE082'
+      bordercolor: '#FFCA28'
+      borderpad: 8
+      borderwidth: 1
+      font:
+        color: '#1c1c1e'
+        size: 13
+      showarrow: true
+      text: '$ex vars.hk.yNow === null ? '''' : ''<b>Außen '' + vars.hk.de(vars.hk.ta) + '' °C</b><br>'' + (vars.hk.heizt ? ''Soll'' : ''Soll laut Kurve'') + '' <b>'' + vars.hk.de(vars.hk.yNow) + '' °C</b>'' + (vars.hk.ist !== null ? ''<br>Ist <b>'' + vars.hk.de(vars.hk.ist) + '' °C</b>'' : '''') + (vars.hk.heizt ? (vars.hk.yKurve !== null && Math.abs(vars.hk.yKurve - vars.hk.sollWp) > 0.5 ? ''<br>laut Kurve '' + vars.hk.de(vars.hk.yKurve) + '' °C'' : '''') : ''<br>Heizbetrieb aus'')'
+      visible: $ex vars.hk.yNow !== null
+      x: $ex vars.hk.ta ?? 0
+      xref: x
+      y: $ex vars.hk.yNow ?? 20
+      yref: y
+    - font:
+        size: 15
+      showarrow: false
+      text: Heizkurve nicht verfügbar (Modbus)
+      visible: $ex !vars.hk.ok
+      x: 0.5
+      xref: paper
+      y: 0.5
+      yref: paper
+  dragmode: false
+  height: 430
+  hovermode: closest
+  legend:
+    orientation: h
+    x: 0
+    xanchor: left
+    y: 1.02
+    yanchor: bottom
+    bgcolor: rgba(0,0,0,0)
+  margin:
+    t: 44
+    r: 24
+    b: 66
+    l: 68
+  separators: ',.'
+  showlegend: true
+  xaxis:
+    autorange: false
+    dtick: 5
+    fixedrange: true
+    range: $ex [vars.hk.xMax, vars.hk.xMin]
+    ticksuffix: ' °C'
+    title:
+      text: Außentemperatur
+      standoff: 10
+    type: linear
+    zeroline: false
+  yaxis:
+    autorange: false
+    dtick: 2
+    fixedrange: true
+    range: $ex [vars.hk.yMin, vars.hk.yMax]
+    ticksuffix: ' °C'
+    title:
+      text: Solltemperatur Heizkreis
+    type: linear
+    zeroline: false
+  paper_bgcolor: rgba(0,0,0,0)
+  plot_bgcolor: rgba(0,0,0,0)
+  font:
+    family: Roboto, Noto, sans-serif
+    size: 12
+refresh_interval: auto
+type: custom:plotly-graph
+card_mod:
+  style: 'ha-card { background: var(--ha-card-background, var(--card-background-color)) !important; }'

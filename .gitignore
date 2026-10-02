@@ -1,0 +1,13 @@
+# Niemals einchecken
+secrets.yaml
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+
+# Scan-Ergebnisse enthalten Rohwerte der eigenen Anlage
+dimplex_scan_*.csv
+
+__pycache__/
+*.pyc
+.DS_Store

@@ -1,0 +1,746 @@
+###############################################################################
+# DIMPLEX WÄRMEPUMPE - MODBUS TCP
+# Datei: /config/packages/dimplex_modbus.yaml
+#
+# Hub "dimplex_wp" mit allen Sensoren und Binärsensoren. Diese Datei liest nur,
+# sie schreibt nichts in die Wärmepumpe.
+#
+# Getestet an: Dimplex System M, WPM-Software M3.15a, NWPM Touch.
+#
+# VOR DEM EINSATZ ANPASSEN:
+#   - secrets.yaml: dimplex_modbus_host: <IP-Adresse des NWPM Touch>
+#     (Vorlage: secrets.yaml.example)
+#
+# Wer in der configuration.yaml schon einen "modbus:"-Abschnitt hat, kann den
+# Hub (alles ab "- name: dimplex_wp") stattdessen dort als weiteren Eintrag
+# einfügen und die Zeile "modbus:" hier weglassen.
+#
+# Adressen am Gerät geprüft (September/Oktober 2026):
+#   5168 = thermische Leistung  (Rohwert 1466 = 14,66 kW)
+#   5170 = elektrische Leistung (Rohwert  404 =  4,04 kW)
+#   72/74/75/76/77/78 = Betriebsstunden
+#   103 = Statusmeldung, 105 = Störmeldung
+# Temperaturen liegen im 1xxx-Adressraum, NICHT auf den Adressen der
+# offiziellen Dimplex-Liste. Mehr dazu: docs/modbus-register.md
+#
+# scan_interval: bewusst lauter verschiedene (Prim-)Zahlen, damit nicht alle
+# Abfragen im selben Moment anstehen. Das Gateway verträgt keine Abfrageflut.
+###############################################################################
+
+modbus:
+  - name: dimplex_wp
+    type: tcp
+    host: !secret dimplex_modbus_host  # TODO: Anpassen - Eintrag in secrets.yaml
+    port: 502
+    delay: 5
+    timeout: 10
+    message_wait_milliseconds: 50
+
+    # ===========================================================================
+    # SENSOREN
+    # ===========================================================================
+    sensors:
+
+      # --- HEIZKURVE ----------------------------------------------------------
+      # Endpunkt HK1 = Rücklauf-Soll bei -20 °C Außentemperatur (Register 5038)
+      # uint16, ganze °C, ohne Skalierung (wie WW-Soll 5047)
+      - name: "Dimplex_WP Heizkurve_Endpunkt_Lesen"
+        unique_id: dimplex_wp_heizkurve_endpunkt_lesen
+        slave: 1
+        address: 5038
+        input_type: holding
+        data_type: uint16
+        scale: 1
+        precision: 0
+        unit_of_measurement: "°C"
+        device_class: temperature
+        scan_interval: 300  # Einstellwert, ändert sich selten
+
+      # --- LEISTUNG (Basis für COP) -------------------------------------------
+      # Rohwert in 10-W-Schritten -> scale 0.01 ergibt kW.
+      # Dimplex weist darauf hin, dass diese Werte aus Prozessdaten geschätzt
+      # sind und erheblich abweichen können - nicht abrechnungstauglich.
+      - name: Dimplex_WP Leistung_Thermisch
+        unique_id: dimplex_leistung_thermisch
+        slave: 1
+        address: 5168
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kW"
+        device_class: power
+        state_class: measurement
+        scale: 0.01
+        precision: 2
+        scan_interval: 31
+
+      - name: Dimplex_WP Leistung_Elektrisch
+        unique_id: dimplex_leistung_elektrisch
+        slave: 1
+        address: 5170
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kW"
+        device_class: power
+        state_class: measurement
+        scale: 0.01
+        precision: 2
+        scan_interval: 37
+
+      # --- BETRIEBSMODUS & EINSTELLUNGEN --------------------------------------
+      - name: Dimplex_WP Betriebsmodus_Raw
+        unique_id: dimplex_betriebsmodus_raw
+        slave: 1
+        address: 5015
+        input_type: input
+        data_type: uint16
+        scan_interval: 307
+
+      # Smart-Grid-Modus: 0 = Hardware-Eingänge, 10-13 = Software-Stufen. Nur gelesen.
+      - name: Dimplex Smart Grid
+        unique_id: dimplex_smart_grid_5167
+        slave: 1
+        address: 5167
+        input_type: input
+        data_type: uint16
+        scan_interval: 311
+
+      # --- STATUS- UND MELDECODES ---------------------------------------------
+      - name: Dimplex_WP Statusmeldung_Raw
+        unique_id: dimplex_statusmeldung_raw
+        slave: 1
+        address: 103
+        input_type: input
+        data_type: uint16
+        scan_interval: 29
+
+      - name: Dimplex_WP Stoermeldung_Raw
+        unique_id: dimplex_stoermeldung_raw
+        slave: 1
+        address: 105
+        input_type: input
+        data_type: uint16
+        scan_interval: 59
+
+      # An der Anlage gesehen: Code 9 (Pumpenvorlauf) vor jedem Verdichterstart.
+      - name: Dimplex_WP Sperrmeldung_Raw
+        unique_id: dimplex_sperrmeldung_raw
+        slave: 1
+        address: 104
+        input_type: input
+        data_type: uint16
+        scan_interval: 61
+
+      # Liest bisher immer 0 (kein Fehler). Bedeutung der Codes ungeprüft.
+      - name: Dimplex_WP Sensorfehler_Raw
+        unique_id: dimplex_wp_sensorfehler_raw
+        slave: 1
+        address: 106
+        input_type: input
+        data_type: uint16
+        scan_interval: 61
+
+      # --- BETRIEBSSTUNDEN ----------------------------------------------------
+      - name: Dimplex_WP Betriebsstunden_Verdichter_1
+        unique_id: dimplex_bh_verdichter_1
+        slave: 1
+        address: 72
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "h"
+        state_class: total_increasing
+        scan_interval: 601
+
+      - name: Dimplex_WP Betriebsstunden_Primaerpumpe
+        unique_id: dimplex_bh_primaerpumpe
+        slave: 1
+        address: 74
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "h"
+        state_class: total_increasing
+        scan_interval: 607
+
+      - name: Dimplex_WP Betriebsstunden_2_Waermeerzeuger
+        unique_id: dimplex_bh_2we
+        slave: 1
+        address: 75
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "h"
+        state_class: total_increasing
+        scan_interval: 613
+
+      - name: Dimplex_WP Betriebsstunden_Heizungspumpe
+        unique_id: dimplex_bh_heizungspumpe
+        slave: 1
+        address: 76
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "h"
+        state_class: total_increasing
+        scan_interval: 619
+
+      - name: Dimplex_WP Betriebsstunden_Warmwasserpumpe
+        unique_id: dimplex_bh_wwpumpe
+        slave: 1
+        address: 77
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "h"
+        state_class: total_increasing
+        scan_interval: 623
+
+      - name: Dimplex_WP Betriebsstunden_Heizstab
+        unique_id: dimplex_bh_heizstab
+        slave: 1
+        address: 78
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "h"
+        state_class: total_increasing
+        scan_interval: 629
+
+      # --- WÄRMEMENGE HEIZEN ---------------------------------------------------
+      # Stellenweise Ablage, Zusammenbau in den Template-Sensoren.
+      # Formel laut Dimplex: (9_12 * 100000000) + (5_8 * 10000) + 1_4
+      - name: Dimplex_WP Waermemenge_Heizen_1_4
+        unique_id: dimplex_wm_heizen_1_4
+        slave: 1
+        address: 5096
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kWh"
+        scan_interval: 641
+
+      - name: Dimplex_WP Waermemenge_Heizen_5_8
+        unique_id: dimplex_wm_heizen_5_8
+        slave: 1
+        address: 5097
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kWh"
+        scan_interval: 643
+
+      - name: Dimplex_WP Waermemenge_Heizen_9_12
+        unique_id: dimplex_wm_heizen_9_12
+        slave: 1
+        address: 5098
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kWh"
+        scan_interval: 647
+
+      # --- WÄRMEMENGE WARMWASSER ----------------------------------------------
+      - name: Dimplex_WP Waermemenge_Warmwasser_1_4
+        unique_id: dimplex_wm_ww_1_4
+        slave: 1
+        address: 5099
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kWh"
+        scan_interval: 653
+
+      - name: Dimplex_WP Waermemenge_Warmwasser_5_8
+        unique_id: dimplex_wm_ww_5_8
+        slave: 1
+        address: 5100
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kWh"
+        scan_interval: 659
+
+      - name: Dimplex_WP Waermemenge_Warmwasser_9_12
+        unique_id: dimplex_wm_ww_9_12
+        slave: 1
+        address: 5101
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kWh"
+        scan_interval: 661
+
+      # --- UMWELTENERGIE -------------------------------------------------------
+      - name: Dimplex_WP Umweltenergie_1_4
+        unique_id: dimplex_umwelt_1_4
+        slave: 1
+        address: 5127
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kWh"
+        scan_interval: 673
+
+      - name: Dimplex_WP Umweltenergie_5_8
+        unique_id: dimplex_umwelt_5_8
+        slave: 1
+        address: 5128
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kWh"
+        scan_interval: 677
+
+      - name: Dimplex_WP Umweltenergie_9_12
+        unique_id: dimplex_umwelt_9_12
+        slave: 1
+        address: 5129
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: "kWh"
+        scan_interval: 683
+
+      # --- TEMPERATUREN --------------------------------------------------------
+      - name: Dimplex_WP Temperatur_Aussentemperatur
+        unique_id: dimplex_temp_aussen
+        slave: 1
+        address: 1301
+        input_type: input
+        data_type: int16
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scale: 0.1
+        precision: 1
+        scan_interval: 181
+
+      - name: Dimplex_WP Temperatur_Vorlauf
+        unique_id: dimplex_temp_vorlauf
+        slave: 1
+        address: 1300
+        input_type: input
+        data_type: int16
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scale: 0.1
+        precision: 1
+        scan_interval: 61
+
+      - name: Dimplex_WP Temperatur_Ruecklauf
+        unique_id: dimplex_temp_ruecklauf
+        slave: 1
+        address: 1294
+        input_type: input
+        data_type: int16
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scale: 0.1
+        precision: 1
+        scan_interval: 67
+
+      - name: Dimplex_WP Temperatur_Ruecklauf_Soll
+        unique_id: dimplex_temp_ruecklauf_soll
+        slave: 1
+        address: 53
+        input_type: input
+        data_type: int16
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scale: 0.1
+        precision: 1
+        scan_interval: 179
+
+      - name: Dimplex_WP Temperatur_Warmwasser
+        unique_id: dimplex_temp_warmwasser
+        slave: 1
+        address: 1305
+        input_type: input
+        data_type: int16
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scale: 0.1
+        precision: 1
+        scan_interval: 127
+
+      # Ohne scale: Register liefert 44 für 44 °C.
+      # Das ist der EINGESTELLTE Grundwert (Schreibziel für Boost/Normal).
+      - name: Dimplex_WP Temperatur_Warmwasser_Soll_Lesen
+        unique_id: dimplex_warmwasser_soll_lesen
+        slave: 1
+        address: 5047
+        input_type: input
+        data_type: int16
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        precision: 0
+        scan_interval: 191
+
+      # Register 58 = AKTIVER Sollwert inkl. Absenkung durch Sperrzeiten.
+      - name: Dimplex_WP Temperatur_Warmwasser_Soll_2
+        unique_id: dimplex_warmwasser_soll_2
+        slave: 1
+        address: 58
+        input_type: input
+        data_type: int16
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scale: 0.1
+        precision: 1
+        scan_interval: 193
+
+      # --- HEIZKREIS -----------------------------------------------------------
+      - name: Dimplex_WP HK1_Betriebsverschiebung_Raw
+        unique_id: dimplex_hk1_betriebsverschiebung_raw
+        slave: 1
+        address: 5065
+        input_type: holding
+        data_type: uint16
+        state_class: measurement
+        scan_interval: 197
+
+      # offset -19: Register 0..38 entspricht -19..+19 K
+      - name: Dimplex_WP Heizkurve_Parallelverschiebung_Lesen
+        unique_id: dimplex_heizkurve_parallel_lesen
+        slave: 1
+        address: 5036
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "K"
+        offset: -19
+        precision: 0
+        state_class: measurement
+        scan_interval: 199
+
+      # =========================================================================
+      # UNDOKUMENTIERTE DATENPUNKTE (Scan + Verlaufsdaten NWPM Touch, Oktober 2026)
+      # Regel: Kennung "Na" = Register N, Kennung "Ni" = Register N + 5001
+      # scan_interval bewusst versetzt, damit nicht alles gleichzeitig abgefragt wird
+      # =========================================================================
+
+      # --- DRÜCKE (bestätigt über App) -----------------------------------------
+      - name: Dimplex_WP Hochdruck
+        unique_id: dimplex_wp_hochdruck
+        slave: 1
+        address: 1280
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: bar
+        device_class: pressure
+        state_class: measurement
+        scan_interval: 31  # TODO: Anpassen
+
+      - name: Dimplex_WP Niederdruck
+        unique_id: dimplex_wp_niederdruck
+        slave: 1
+        address: 4865
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: bar
+        device_class: pressure
+        state_class: measurement
+        scan_interval: 37
+
+      - name: Dimplex_WP Heizwasser Anlagendruck
+        unique_id: dimplex_wp_heizwasser_anlagendruck
+        slave: 1
+        address: 556
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: bar
+        device_class: pressure
+        state_class: measurement
+        scan_interval: 293  # ändert sich kaum
+
+      # --- HYDRAULIK -----------------------------------------------------------
+      - name: Dimplex_WP Volumenstrom
+        unique_id: dimplex_wp_volumenstrom
+        slave: 1
+        address: 6473
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: L/h
+        device_class: volume_flow_rate
+        state_class: measurement
+        scan_interval: 41
+
+      # Rücklauf direkt an der Wärmepumpe (App: "Rücklauftemperatur") - bestätigt
+      - name: Dimplex_WP Temperatur Ruecklauf Waermepumpe
+        unique_id: dimplex_wp_temperatur_ruecklauf_waermepumpe
+        slave: 1
+        address: 637
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scan_interval: 47
+
+      # --- VERDICHTER ----------------------------------------------------------
+      - name: Dimplex_WP Inverterfrequenz
+        unique_id: dimplex_wp_inverterfrequenz
+        slave: 1
+        address: 6551
+        input_type: input
+        data_type: uint16
+        unit_of_measurement: Hz
+        device_class: frequency
+        state_class: measurement
+        scan_interval: 43
+
+      # Taktungen (Verdichterstarts) - bestätigt über App
+      - name: Dimplex_WP Taktungen Verdichter Gesamt
+        unique_id: dimplex_wp_taktungen_verdichter_gesamt
+        slave: 1
+        address: 6492
+        input_type: input
+        data_type: uint16
+        state_class: total_increasing
+        scan_interval: 601
+
+      - name: Dimplex_WP Taktungen Verdichter Heizen
+        unique_id: dimplex_wp_taktungen_verdichter_heizen
+        slave: 1
+        address: 6493
+        input_type: input
+        data_type: uint16
+        state_class: total_increasing
+        scan_interval: 607
+
+      - name: Dimplex_WP Taktungen Verdichter Warmwasser
+        unique_id: dimplex_wp_taktungen_verdichter_warmwasser
+        slave: 1
+        address: 6494
+        input_type: input
+        data_type: uint16
+        state_class: total_increasing
+        scan_interval: 613
+
+      # --- KÄLTEKREIS (Deutung aus Verlaufsdaten, noch nicht live bestätigt) ----
+      # Verdampfungstemperatur: folgt dem Niederdruck
+      - name: Dimplex_WP Temperatur Verdampfung
+        unique_id: dimplex_wp_temperatur_verdampfung
+        slave: 1
+        address: 601
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scan_interval: 53
+
+      # Verflüssigungstemperatur: folgt dem Hochdruck
+      - name: Dimplex_WP Temperatur Verfluessigung
+        unique_id: dimplex_wp_temperatur_verfluessigung
+        slave: 1
+        address: 696
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scan_interval: 59
+
+      - name: Dimplex_WP Temperatur Sauggas
+        unique_id: dimplex_wp_temperatur_sauggas
+        slave: 1
+        address: 4866
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        scan_interval: 61
+
+      # Überhitzung = Sauggas minus Verdampfung (im Verlauf exakt so nachgerechnet)
+      # Ohne device_class, damit HA die Kelvin-Differenz nicht in °C umrechnet
+      - name: Dimplex_WP Ueberhitzung
+        unique_id: dimplex_wp_ueberhitzung
+        slave: 1
+        address: 604
+        input_type: input
+        data_type: int16
+        scale: 0.1
+        precision: 1
+        unit_of_measurement: K
+        state_class: measurement
+        scan_interval: 67
+
+      # --- LEISTUNG (Deutung aus Verlaufsdaten) --------------------------------
+      # Umweltleistung = Wärmeleistung minus elektrische Leistung
+      - name: Dimplex_WP Leistung Umwelt
+        unique_id: dimplex_wp_leistung_umwelt
+        slave: 1
+        address: 7668
+        input_type: input
+        data_type: int16
+        scale: 0.01
+        precision: 2
+        unit_of_measurement: kW
+        device_class: power
+        state_class: measurement
+        scan_interval: 71
+
+      # --- ARBEITSZAHL (COP) DIREKT AUS DER WÄRMEPUMPE -------------------------
+      # Entspricht der Seite "Effizienz" in der Dimplex-App (dort auf 1 Stelle gerundet)
+      - name: Dimplex_WP COP Monat
+        unique_id: dimplex_wp_cop_monat
+        slave: 1
+        address: 8691
+        input_type: input
+        data_type: uint16
+        scale: 0.01
+        precision: 2
+        state_class: measurement
+        scan_interval: 907  # TODO: Anpassen, Wert ändert sich nur langsam
+
+      # Annahme: Liste rückt am Monatsersten weiter, 8645 ist dann immer der Vormonat
+      - name: Dimplex_WP COP Vormonat
+        unique_id: dimplex_wp_cop_vormonat
+        slave: 1
+        address: 8645
+        input_type: input
+        data_type: uint16
+        scale: 0.01
+        precision: 2
+        state_class: measurement
+        scan_interval: 3607
+
+      # Deutung noch nicht bestätigt
+      - name: Dimplex_WP COP Jahr
+        unique_id: dimplex_wp_cop_jahr
+        slave: 1
+        address: 8692
+        input_type: input
+        data_type: uint16
+        scale: 0.01
+        precision: 2
+        state_class: measurement
+        scan_interval: 3613
+
+    # ===========================================================================
+    # BINÄRSENSOREN (Coils)
+    # ===========================================================================
+    binary_sensors:
+
+      - name: Dimplex_WP Verdichter_1
+        unique_id: dimplex_verdichter_1
+        slave: 1
+        address: 41
+        input_type: coil
+        device_class: running
+        scan_interval: 31
+
+      - name: Dimplex_WP Verdichter_2
+        unique_id: dimplex_verdichter_2
+        slave: 1
+        address: 42
+        input_type: coil
+        device_class: running
+        scan_interval: 53
+
+      - name: Dimplex_WP Primaerpumpe_M11_Ventilator_M2
+        unique_id: dimplex_primaerpumpe
+        slave: 1
+        address: 43
+        input_type: coil
+        device_class: running
+        scan_interval: 37
+
+      - name: Dimplex_WP Waermeerzeuger_2_E10
+        unique_id: dimplex_waermeerzeuger_2
+        slave: 1
+        address: 44
+        input_type: coil
+        device_class: heat
+        scan_interval: 41
+
+      - name: Dimplex_WP Heizungspumpe_M13
+        unique_id: dimplex_heizungspumpe
+        slave: 1
+        address: 45
+        input_type: coil
+        device_class: running
+        scan_interval: 43
+
+      - name: Dimplex_WP Warmwasserpumpe_M18
+        unique_id: dimplex_warmwasserpumpe
+        slave: 1
+        address: 46
+        input_type: coil
+        device_class: running
+        scan_interval: 47
+
+      - name: Dimplex_WP Zusatzumwaelzpumpe
+        unique_id: dimplex_zusatzumwaelzpumpe
+        slave: 1
+        address: 49
+        input_type: coil
+        device_class: running
+        scan_interval: 59
+
+      - name: Dimplex_WP Heizstab_Ausgang
+        unique_id: dimplex_heizstab_ausgang
+        slave: 1
+        address: 50
+        input_type: coil
+        device_class: heat
+        scan_interval: 61
+
+      - name: Dimplex_WP Stoermeldeausgang
+        unique_id: dimplex_stoermeldeausgang
+        slave: 1
+        address: 57
+        input_type: coil
+        device_class: problem
+        scan_interval: 67
+
+      - name: Dimplex_WP SmartGrid_Eingang_1
+        unique_id: dimplex_sg_eingang_1
+        slave: 1
+        address: 3
+        input_type: coil
+        scan_interval: 71
+
+      - name: Dimplex_WP SmartGrid_Eingang_2
+        unique_id: dimplex_sg_eingang_2
+        slave: 1
+        address: 4
+        input_type: coil
+        scan_interval: 73
+
+      - name: Dimplex_WP EVU_Sperre
+        unique_id: dimplex_evu_sperre
+        slave: 1
+        address: 5
+        input_type: coil
+        scan_interval: 79
+
+      # --- UNDOKUMENTIERTE COILS (Regel: Kennung "Nd" = Coil N, bestätigt) ------
+      # Bedeutung aus den Schaltzeitpunkten im Verlauf abgeleitet
+      - name: Dimplex_WP Anforderung Heizen
+        unique_id: dimplex_wp_anforderung_heizen
+        slave: 1
+        address: 1205
+        input_type: coil
+        scan_interval: 23  # TODO: Anpassen
+
+      - name: Dimplex_WP Anforderung Warmwasser
+        unique_id: dimplex_wp_anforderung_warmwasser
+        slave: 1
+        address: 1206
+        input_type: coil
+        scan_interval: 29
+
+      # Schaltet genau dann, wenn die Wärmeleistung negativ wird
+      - name: Dimplex_WP Abtauung
+        unique_id: dimplex_wp_abtauung
+        slave: 1
+        address: 1504
+        input_type: coil
+        scan_interval: 19

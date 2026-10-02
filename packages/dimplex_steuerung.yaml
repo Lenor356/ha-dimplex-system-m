@@ -1,0 +1,801 @@
+###############################################################################
+# DIMPLEX WÄRMEPUMPE - AUSWERTUNG & STEUERUNG
+# Datei: /config/packages/dimplex_steuerung.yaml
+#
+# Gehört zusammen mit:
+#   packages/dimplex_modbus.yaml  - Modbus-Hub "dimplex_wp" mit allen Sensoren
+#   packages/dimplex_helfer.yaml  - Helfer, Klartext-Meldungen, Tageswerte,
+#                                   Warn-Automationen
+#
+# In dieser Datei:
+#   template:      berechnete Sensoren (Wärmemengen, COP, Status im Klartext)
+#   script:        Schreibzugriffe auf die Wärmepumpe
+#   input_number:  Heizkurve Endpunkt und Parallelverschiebung
+#   automation:    Abgleich Oberfläche <-> Wärmepumpe, Boost, Störmeldung
+#
+# VOR DEM EINSATZ ANPASSEN (im Text mit "# TODO: Anpassen" markiert):
+#   - sensor.shellyem3_xxxxxxxxxxxx_channel_*_power: eigene Strommessung der
+#     Wärmepumpe (hier ein Shelly 3EM). Ohne Strommessung den Sensor
+#     "Heizung_Stormverbrauch" und "Dimplex_WP COP_Gemessen" löschen.
+#   - notify.mobile_app_dein_geraet: eigener Benachrichtigungsdienst.
+#   - Grenzen der Heizkurven-Helfer (min/max) passend zur eigenen Anlage.
+#
+# ACHTUNG: Die Skripte und Automationen SCHREIBEN in die Wärmepumpe
+# (Register 5015, 5036, 5038, 5047, 5065). Getestet an einer Dimplex
+# System M, Software M3.15. Bei anderen Geräten oder Softwareständen erst
+# die Register prüfen (siehe docs/modbus-register.md).
+###############################################################################
+
+template:
+  - sensor:
+      # =====================================================================
+      # WÄRMEMENGEN
+      # Stellenweise Ablage: 1_4 = Stellen 1-4, 5_8 = Stellen 5-8,
+      # 9_12 = Stellen 9-12. Formel laut Dimplex-Doku, am Display verifiziert.
+      # Liefert das Gateway kurz ueberall 0 (Neustart des NWPM Touch), wird der
+      # Sensor "nicht verfuegbar" statt 0. Sonst wertet die Langzeitstatistik
+      # das als Zaehlerreset und addiert danach den vollen Stand noch einmal.
+      # =====================================================================
+      - name: "Dimplex_WP Waermemenge_Heizen_Gesamt"
+        unique_id: dimplex_waermemenge_heizen_gesamt
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        icon: mdi:radiator
+        availability: >
+          {{ has_value('sensor.dimplex_wp_waermemenge_heizen_1_4')
+             and has_value('sensor.dimplex_wp_waermemenge_heizen_5_8')
+             and has_value('sensor.dimplex_wp_waermemenge_heizen_9_12')
+             and (states('sensor.dimplex_wp_waermemenge_heizen_1_4') | int(0)
+                  + states('sensor.dimplex_wp_waermemenge_heizen_5_8') | int(0)
+                  + states('sensor.dimplex_wp_waermemenge_heizen_9_12') | int(0)) > 0 }}
+        state: >
+          {% set a = states('sensor.dimplex_wp_waermemenge_heizen_1_4') | int(0) %}
+          {% set b = states('sensor.dimplex_wp_waermemenge_heizen_5_8') | int(0) %}
+          {% set c = states('sensor.dimplex_wp_waermemenge_heizen_9_12') | int(0) %}
+          {{ a + b * 10000 + c * 100000000 }}
+
+      - name: "Dimplex_WP Waermemenge_Warmwasser_Gesamt"
+        unique_id: dimplex_waermemenge_warmwasser_gesamt
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        icon: mdi:water-boiler
+        availability: >
+          {{ has_value('sensor.dimplex_wp_waermemenge_warmwasser_1_4')
+             and has_value('sensor.dimplex_wp_waermemenge_warmwasser_5_8')
+             and has_value('sensor.dimplex_wp_waermemenge_warmwasser_9_12')
+             and (states('sensor.dimplex_wp_waermemenge_warmwasser_1_4') | int(0)
+                  + states('sensor.dimplex_wp_waermemenge_warmwasser_5_8') | int(0)
+                  + states('sensor.dimplex_wp_waermemenge_warmwasser_9_12') | int(0)) > 0 }}
+        state: >
+          {% set a = states('sensor.dimplex_wp_waermemenge_warmwasser_1_4') | int(0) %}
+          {% set b = states('sensor.dimplex_wp_waermemenge_warmwasser_5_8') | int(0) %}
+          {% set c = states('sensor.dimplex_wp_waermemenge_warmwasser_9_12') | int(0) %}
+          {{ a + b * 10000 + c * 100000000 }}
+
+      - name: "Dimplex_WP Umweltenergie_Gesamt"
+        unique_id: dimplex_umweltenergie_gesamt
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        icon: mdi:leaf
+        availability: >
+          {{ has_value('sensor.dimplex_wp_umweltenergie_1_4')
+             and has_value('sensor.dimplex_wp_umweltenergie_5_8')
+             and has_value('sensor.dimplex_wp_umweltenergie_9_12')
+             and (states('sensor.dimplex_wp_umweltenergie_1_4') | int(0)
+                  + states('sensor.dimplex_wp_umweltenergie_5_8') | int(0)
+                  + states('sensor.dimplex_wp_umweltenergie_9_12') | int(0)) > 0 }}
+        state: >
+          {% set a = states('sensor.dimplex_wp_umweltenergie_1_4') | int(0) %}
+          {% set b = states('sensor.dimplex_wp_umweltenergie_5_8') | int(0) %}
+          {% set c = states('sensor.dimplex_wp_umweltenergie_9_12') | int(0) %}
+          {{ a + b * 10000 + c * 100000000 }}
+
+      - name: "Dimplex_WP Waermemenge_Gesamt"
+        unique_id: dimplex_waermemenge_gesamt
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        icon: mdi:sigma
+        availability: >
+          {{ has_value('sensor.dimplex_wp_waermemenge_heizen_gesamt')
+             and has_value('sensor.dimplex_wp_waermemenge_warmwasser_gesamt') }}
+        state: >
+          {{ states('sensor.dimplex_wp_waermemenge_heizen_gesamt') | int(0)
+             + states('sensor.dimplex_wp_waermemenge_warmwasser_gesamt') | int(0) }}
+
+      # =====================================================================
+      # LEISTUNG & EFFIZIENZ
+      # =====================================================================
+      # Strommessung am Heizungsabgang (hier: Shelly 3EM, drei Phasen).
+      # TODO: Anpassen - eigene Leistungssensoren eintragen.
+      # Der Name enthält einen alten Tippfehler ("Storm"); er bleibt, weil
+      # Dashboard und Statistik an der entity_id hängen.
+      - name: "Heizung_Stormverbrauch"
+        unique_id: heizung_stromverbrauch_leistung
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        icon: mdi:flash
+        availability: >
+          {{ has_value('sensor.shellyem3_xxxxxxxxxxxx_channel_a_power')
+             and has_value('sensor.shellyem3_xxxxxxxxxxxx_channel_b_power')
+             and has_value('sensor.shellyem3_xxxxxxxxxxxx_channel_c_power') }}
+        state: >
+          {{ ([
+               states('sensor.shellyem3_xxxxxxxxxxxx_channel_a_power') | float(0),
+               states('sensor.shellyem3_xxxxxxxxxxxx_channel_b_power') | float(0),
+               states('sensor.shellyem3_xxxxxxxxxxxx_channel_c_power') | float(0)
+             ] | sum) | round(1) }}
+
+      # Gemessene Aufnahme der gesamten Wärmepumpe (inkl. Pumpen und Heizstab)
+      # unter einem sprechenden Namen, z. B. für Energie-Auswertungen.
+      - name: "Waermepumpe Leistung"
+        unique_id: waermepumpe_leistung
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        icon: mdi:heat-pump
+        availability: "{{ has_value('sensor.heizung_stormverbrauch') }}"
+        state: "{{ states('sensor.heizung_stormverbrauch') | float(0) | round(0) }}"
+
+      # Registerwerte in W - fuer Diagramme neben der Shelly-Messung.
+      - name: "Dimplex_WP Leistung_Thermisch_W"
+        unique_id: dimplex_leistung_thermisch_w
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        icon: mdi:fire
+        availability: "{{ has_value('sensor.dimplex_wp_leistung_thermisch') }}"
+        state: >
+          {{ (states('sensor.dimplex_wp_leistung_thermisch') | float(0) * 1000) | round(0) }}
+
+      - name: "Dimplex_WP Leistung_Elektrisch_W"
+        unique_id: dimplex_leistung_elektrisch_w
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        icon: mdi:lightning-bolt
+        availability: "{{ has_value('sensor.dimplex_wp_leistung_elektrisch') }}"
+        state: >
+          {{ (states('sensor.dimplex_wp_leistung_elektrisch') | float(0) * 1000) | round(0) }}
+
+      # COP aus den WP-eigenen Registern - entspricht der Effizienz-Anzeige
+      # am Display. Nur bei laufendem Verdichter und ab 0,3 kW Aufnahme;
+      # Werte ausserhalb 1..8 entstehen durch unsynchrones Lesen der
+      # Register (31 s / 37 s) beim Anlauf und werden verworfen.
+      - name: "Dimplex_WP COP"
+        unique_id: dimplex_cop
+        state_class: measurement
+        icon: mdi:gauge
+        availability: >
+          {% set th = states('sensor.dimplex_wp_leistung_thermisch') | float(0) %}
+          {% set el = states('sensor.dimplex_wp_leistung_elektrisch') | float(0) %}
+          {{ is_state('binary_sensor.dimplex_wp_verdichter_1', 'on')
+             and has_value('sensor.dimplex_wp_leistung_thermisch')
+             and has_value('sensor.dimplex_wp_leistung_elektrisch')
+             and el > 0.3
+             and 1 <= (th / el) <= 8 }}
+        state: >
+          {{ (states('sensor.dimplex_wp_leistung_thermisch') | float(0)
+              / states('sensor.dimplex_wp_leistung_elektrisch') | float(1)) | round(2) }}
+
+      # Gegenprobe mit der echten Strommessung. Faellt systematisch
+      # niedriger aus, weil der Shelly Pumpen und Steuerung mitmisst.
+      - name: "Dimplex_WP COP_Gemessen"
+        unique_id: dimplex_cop_gemessen
+        state_class: measurement
+        icon: mdi:gauge-low
+        availability: >
+          {% set th = states('sensor.dimplex_wp_leistung_thermisch') | float(0) * 1000 %}
+          {% set el = states('sensor.heizung_stormverbrauch') | float(0) %}
+          {{ is_state('binary_sensor.dimplex_wp_verdichter_1', 'on')
+             and has_value('sensor.dimplex_wp_leistung_thermisch')
+             and has_value('sensor.heizung_stormverbrauch')
+             and el > 300
+             and 1 <= (th / el) <= 8 }}
+        state: >
+          {{ (states('sensor.dimplex_wp_leistung_thermisch') | float(0) * 1000
+              / states('sensor.heizung_stormverbrauch') | float(1)) | round(2) }}
+
+      # =====================================================================
+      # AUSWERTUNGEN
+      # =====================================================================
+      - name: "Dimplex_WP Spreizung_Heizkreis"
+        unique_id: dimplex_spreizung_heizkreis
+        unit_of_measurement: "K"
+        state_class: measurement
+        icon: mdi:arrow-expand-vertical
+        availability: >
+          {{ has_value('sensor.dimplex_wp_temperatur_vorlauf')
+             and has_value('sensor.dimplex_wp_temperatur_ruecklauf') }}
+        state: >
+          {{ (states('sensor.dimplex_wp_temperatur_vorlauf') | float(0)
+              - states('sensor.dimplex_wp_temperatur_ruecklauf') | float(0)) | round(1) }}
+
+      # Ruecklauf-Ist minus Ruecklauf-Soll: negativ = Waermebedarf
+      - name: "Dimplex_WP Regelabweichung"
+        unique_id: dimplex_regelabweichung
+        unit_of_measurement: "K"
+        state_class: measurement
+        icon: mdi:target
+        availability: >
+          {{ has_value('sensor.dimplex_wp_temperatur_ruecklauf')
+             and has_value('sensor.dimplex_wp_temperatur_ruecklauf_soll') }}
+        state: >
+          {{ (states('sensor.dimplex_wp_temperatur_ruecklauf') | float(0)
+              - states('sensor.dimplex_wp_temperatur_ruecklauf_soll') | float(0)) | round(1) }}
+
+      # =====================================================================
+      # STATUS IM KLARTEXT
+      # =====================================================================
+      - name: "Dimplex_WP Status"
+        unique_id: dimplex_status_text
+        icon: >
+          {% if is_state('binary_sensor.dimplex_wp_verdichter_1', 'on') %}
+            mdi:fire
+          {% elif is_state('binary_sensor.dimplex_wp_warmwasserpumpe_m18', 'on') %}
+            mdi:water-boiler
+          {% elif is_state('binary_sensor.dimplex_wp_evu_sperre', 'on') %}
+            mdi:transmission-tower-off
+          {% else %}
+            mdi:power-standby
+          {% endif %}
+        availability: "{{ has_value('binary_sensor.dimplex_wp_verdichter_1') }}"
+        state: >
+          {% if is_state('binary_sensor.dimplex_wp_verdichter_1', 'on')
+                and is_state('binary_sensor.dimplex_wp_warmwasserpumpe_m18', 'on') %}
+            Warmwasser
+          {% elif is_state('binary_sensor.dimplex_wp_verdichter_1', 'on') %}
+            Heizt
+          {% elif is_state('binary_sensor.dimplex_wp_waermeerzeuger_2_e10', 'on') %}
+            Heizstab
+          {% elif is_state('binary_sensor.dimplex_wp_evu_sperre', 'on') %}
+            EVU-Sperre
+          {% else %}
+            Standby
+          {% endif %}
+
+      # Statuscodes laut Dimplex-Modbus-Doku (Register 103).
+      # 0 und 1 bedeuten beide "Aus". Unbekannte Codes werden als Zahl
+      # angezeigt - falls einer haeufig auftaucht, ergaenzen wir ihn.
+      - name: "Dimplex_WP Statusmeldung"
+        unique_id: dimplex_statusmeldung_text
+        icon: mdi:information-outline
+        availability: "{{ has_value('sensor.dimplex_wp_statusmeldung_raw') }}"
+        state: >
+          {% set codes = {
+               0: 'Aus',
+               1: 'Aus',
+               2: 'Heizen',
+               3: 'Schwimmbad',
+               4: 'Warmwasser',
+               5: 'Kühlen',
+               10: 'Abtauen',
+               11: 'Durchflussüberwachung',
+               24: 'Verzögerung Moduswechsel',
+               30: 'Sperre aktiv'
+             } %}
+          {% set c = states('sensor.dimplex_wp_statusmeldung_raw') | int(-1) %}
+          {{ codes.get(c, 'Code ' ~ c) }}
+
+      - name: "Dimplex_WP_Betriebsmodus"
+        unique_id: dimplex_betriebsmodus_text
+        icon: mdi:tune
+        availability: "{{ has_value('sensor.dimplex_wp_betriebsmodus_raw') }}"
+        state: >
+          {% set modes = {
+               0: 'Sommer', 1: 'Winter', 2: 'Urlaub',
+               3: 'Party', 4: 'Heizstab', 5: 'Kühlen'
+             } %}
+          {% set m = states('sensor.dimplex_wp_betriebsmodus_raw') | int(-1) %}
+          {{ modes.get(m, 'Unbekannt (' ~ m ~ ')') }}
+
+      - name: "Dimplex_WP SG_Ready_Modus"
+        unique_id: dimplex_sg_ready_modus_text
+        icon: mdi:solar-power-variant
+        availability: "{{ has_value('sensor.dimplex_smart_grid') }}"
+        state: >
+          {% set sg = {
+               0: 'Hardware', 10: 'Gelb', 11: 'Grün',
+               12: 'Rot', 13: 'Deep Green'
+             } %}
+          {% set c = states('sensor.dimplex_smart_grid') | int(-1) %}
+          {{ sg.get(c, 'Code ' ~ c) }}
+
+      - name: "Dimplex_WP_Heizkurve_Parallelverschiebung_Anzeige"
+        unique_id: dimplex_heizkurve_parallelverschiebung_anzeige
+        unit_of_measurement: "K"
+        icon: mdi:thermometer-lines
+        availability: >
+          {{ has_value('sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen') }}
+        state: >
+          {% set v = states('sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen') | int(0) %}
+          {{ '+' ~ v if v > 0 else v }}
+        attributes:
+          beschreibung: "Parallelverschiebung der Heizkurve"
+
+  - binary_sensor:
+
+      - name: "Dimplex_WP Laeuft"
+        unique_id: dimplex_laeuft
+        device_class: running
+        availability: "{{ has_value('binary_sensor.dimplex_wp_verdichter_1') }}"
+        state: >
+          {{ is_state('binary_sensor.dimplex_wp_verdichter_1', 'on')
+             or is_state('binary_sensor.dimplex_wp_verdichter_2', 'on') }}
+
+      - name: "Dimplex_WP Stoerung"
+        unique_id: dimplex_stoerung
+        device_class: problem
+        availability: "{{ has_value('binary_sensor.dimplex_wp_stoermeldeausgang') }}"
+        state: "{{ is_state('binary_sensor.dimplex_wp_stoermeldeausgang', 'on') }}"
+
+###############################################################################
+# SKRIPTE
+###############################################################################
+script:
+  dimplex_hk1_modus_setzen:
+    alias: "Dimplex HK1 Modus setzen"
+    mode: single
+    fields:
+      modus:
+        description: "Modus (0=Normal, 1=Absenkung, 2=Anhebung)"
+        example: "1"
+    sequence:
+      - action: modbus.write_register
+        data:
+          hub: dimplex_wp
+          slave: 1
+          address: 5065
+          value: "{{ modus | int(0) }}"
+
+  dimplex_warmwasser_soll_setzen:
+    alias: "Dimplex Warmwasser Solltemperatur setzen"
+    mode: single
+    fields:
+      temperatur:
+        description: "Solltemperatur in °C (35-60)"
+        example: "44"
+    sequence:
+      - action: modbus.write_register
+        data:
+          hub: dimplex_wp
+          slave: 1
+          address: 5047
+          value: "{{ temperatur | int(44) }}"
+
+input_number:
+  dimplex_hk1_heizkurve_endpunkt:
+    name: "Dimplex HK1 Heizkurve Endpunkt"
+    # Register erlaubt 20–70 °C; für Fußbodenheizung bewusst eng begrenzt
+    min: 22  # TODO: Anpassen
+    max: 40  # TODO: Anpassen
+    step: 1
+    mode: box
+    unit_of_measurement: "°C"
+    icon: mdi:chart-line
+
+  dimplex_hk1_heizkurve_parallel:
+    name: "Dimplex HK1 Parallelverschiebung"
+    # Register 0–38 (19 = neutral) → Anzeige −19…+19 K; hier bewusst begrenzt
+    min: -10  # TODO: Anpassen
+    max: 10  # TODO: Anpassen
+    step: 1
+    mode: box
+    unit_of_measurement: "K"
+    icon: mdi:arrow-up-down
+
+###############################################################################
+# AUTOMATIONEN
+###############################################################################
+automation:
+
+  # --- Betriebsmodus schreiben (UI -> WP) ---
+  - id: dimplex_write_betriebsmodus
+    alias: "Dimplex: Betriebsmodus setzen"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_select.dimplex_betriebsmodus_steuerung
+    condition:
+      # from_state is not none verhindert Fehltrigger beim HA-Start
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.to_state.state not in ['unavailable', 'unknown']
+             and trigger.from_state.state != trigger.to_state.state }}
+    action:
+      - action: modbus.write_register
+        data:
+          hub: dimplex_wp
+          slave: 1
+          address: 5015
+          value: >
+            {% set modes = {
+                 'Sommer': 0, 'Winter': 1, 'Urlaub': 2,
+                 'Party': 3, 'Heizstab': 4, 'Kühlen': 5
+               } %}
+            {{ modes.get(states('input_select.dimplex_betriebsmodus_steuerung'), 0) }}
+
+  # --- Betriebsmodus lesen (WP -> UI) ---
+  # Uebernimmt nur Modi, die es in der Auswahlliste gibt (z. B. nicht "Kuehlen"),
+  # sonst wirft select_option einen Fehler.
+  - id: dimplex_sync_betriebsmodus
+    alias: "Dimplex: Betriebsmodus synchronisieren"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: sensor.dimplex_wp_betriebsmodus
+    condition:
+      - condition: template
+        value_template: >
+          {{ trigger.to_state.state not in ['unavailable', 'unknown']
+             and states('sensor.dimplex_wp_betriebsmodus')
+                 in (state_attr('input_select.dimplex_betriebsmodus_steuerung', 'options') or [])
+             and states('sensor.dimplex_wp_betriebsmodus')
+                 != states('input_select.dimplex_betriebsmodus_steuerung') }}
+    action:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.dimplex_betriebsmodus_steuerung
+        data:
+          option: "{{ states('sensor.dimplex_wp_betriebsmodus') }}"
+
+  # --- Warmwasser-Soll schreiben (UI -> WP) ---
+  - id: dimplex_write_warmwasser_soll
+    alias: "Dimplex: Warmwasser Solltemperatur setzen"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_number.dimplex_warmwasser_soll_steuerung
+    condition:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.to_state.state not in ['unavailable', 'unknown']
+             and trigger.from_state.state != trigger.to_state.state }}
+    action:
+      - action: script.dimplex_warmwasser_soll_setzen
+        data:
+          temperatur: "{{ states('input_number.dimplex_warmwasser_soll_steuerung') | int(44) }}"
+
+  # --- Warmwasser-Soll lesen (WP -> UI) ---
+  - id: dimplex_sync_warmwasser_soll
+    alias: "Dimplex: Warmwasser Solltemperatur synchronisieren"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: sensor.dimplex_wp_temperatur_warmwasser_soll_lesen
+    condition:
+      - condition: template
+        value_template: >
+          {{ trigger.to_state.state not in ['unavailable', 'unknown']
+             and states('sensor.dimplex_wp_temperatur_warmwasser_soll_lesen') | int(0)
+                 != states('input_number.dimplex_warmwasser_soll_steuerung') | int(0) }}
+    action:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.dimplex_warmwasser_soll_steuerung
+        data:
+          value: "{{ states('sensor.dimplex_wp_temperatur_warmwasser_soll_lesen') | int(44) }}"
+
+  # --- Boost EIN ---
+  - id: dimplex_warmwasser_boost_ein
+    alias: "Dimplex: Warmwasser Boost ein"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_boolean.dimplex_warmwasser_boost
+        to: "on"
+    action:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.dimplex_warmwasser_soll_steuerung
+        data:
+          value: "{{ states('input_number.dimplex_warmwasser_boost_temp') | float(60) }}"
+      - action: persistent_notification.create
+        data:
+          title: "Dimplex Wärmepumpe"
+          message: >
+            Warmwasser Boost aktiv:
+            {{ states('input_number.dimplex_warmwasser_boost_temp') }} °C für 2 Stunden
+
+  # --- Boost AUS ---
+  # Greift bei jedem Ausschalten: manuell, per Zeitlimit oder nach Neustart.
+  - id: dimplex_warmwasser_boost_aus
+    alias: "Dimplex: Warmwasser Boost aus"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_boolean.dimplex_warmwasser_boost
+        to: "off"
+        from: "on"
+    action:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.dimplex_warmwasser_soll_steuerung
+        data:
+          value: "{{ states('input_number.dimplex_warmwasser_normal') | float(44) }}"
+      - action: persistent_notification.create
+        data:
+          title: "Dimplex Wärmepumpe"
+          message: >
+            Warmwasser Boost beendet, zurück auf
+            {{ states('input_number.dimplex_warmwasser_normal') }} °C
+
+  # --- Boost-Zeitlimit ---
+  # Beendet den Boost 2 Stunden nach dem Einschalten. Ein for:-Timer
+  # ueberlebt keinen HA-Neustart, deshalb beendet ein Neustart den Boost
+  # sofort (Start-Trigger). Ist der Boost schon aus, passiert nichts.
+  - id: dimplex_warmwasser_boost_zeitlimit
+    alias: "Dimplex: Warmwasser Boost Zeitlimit"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_boolean.dimplex_warmwasser_boost
+        to: "on"
+        for: "02:00:00"
+      - platform: homeassistant
+        event: start
+    action:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.dimplex_warmwasser_boost
+
+  # --- Wächter ---
+  # Zustandslos: vergleicht alle 10 Minuten den Wert in der WP mit dem
+  # Normalwert und korrigiert, solange kein Boost laeuft. Faengt
+  # abgebrochene Automationen, Neustarts und Aenderungen am Display ab.
+  - id: dimplex_warmwasser_waechter
+    alias: "Dimplex: Warmwasser Sollwert-Wächter"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        minutes: "/10"
+      - platform: homeassistant
+        event: start
+    condition:
+      - condition: state
+        entity_id: input_boolean.dimplex_warmwasser_boost
+        state: "off"
+      - condition: template
+        value_template: >
+          {{ has_value('sensor.dimplex_wp_temperatur_warmwasser_soll_lesen')
+             and states('sensor.dimplex_wp_temperatur_warmwasser_soll_lesen') | int(0)
+                 != states('input_number.dimplex_warmwasser_normal') | int(44) }}
+    action:
+      - action: script.dimplex_warmwasser_soll_setzen
+        data:
+          temperatur: "{{ states('input_number.dimplex_warmwasser_normal') | int(44) }}"
+      - action: system_log.write
+        data:
+          message: >
+            Warmwasser-Sollwert korrigiert: war
+            {{ states('sensor.dimplex_wp_temperatur_warmwasser_soll_lesen') }},
+            gesetzt auf {{ states('input_number.dimplex_warmwasser_normal') }}
+          level: warning
+
+  # --- HK1 Absenkung/Anhebung schreiben ---
+  - id: dimplex_hk1_write
+    alias: "Dimplex: HK1 Absenkung/Anhebung setzen"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_number.dimplex_hk1_absenkung_anhebung
+    condition:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.to_state.state not in ['unavailable', 'unknown']
+             and trigger.from_state.state != trigger.to_state.state }}
+    action:
+      - action: script.dimplex_hk1_modus_setzen
+        data:
+          modus: "{{ states('input_number.dimplex_hk1_absenkung_anhebung') | int(0) }}"
+
+  # --- HK1 Status lesen ---
+  - id: dimplex_hk1_sync
+    alias: "Dimplex: HK1 Status synchronisieren"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: sensor.dimplex_wp_hk1_betriebsverschiebung_raw
+    condition:
+      - condition: template
+        value_template: >
+          {{ trigger.to_state.state not in ['unavailable', 'unknown']
+             and states('sensor.dimplex_wp_hk1_betriebsverschiebung_raw') | int(0)
+                 != states('input_number.dimplex_hk1_absenkung_anhebung') | int(0) }}
+    action:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.dimplex_hk1_absenkung_anhebung
+        data:
+          value: "{{ states('sensor.dimplex_wp_hk1_betriebsverschiebung_raw') | int(0) }}"
+
+  # --- Störung melden ---
+  # Meldet eine Stoerung nach 2 Minuten per Push und in HA, mit Klartext.
+  # Taegliche Erinnerung um 9 Uhr, solange die Stoerung ansteht - faengt auch
+  # Neustarts ab, bei denen der 2-Minuten-Timer verloren geht.
+  - id: dimplex_stoerung_melden
+    alias: "Dimplex: Störung melden"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.dimplex_wp_stoerung
+        to: "on"
+        for: "00:02:00"
+      - platform: time
+        at: "09:00:00"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.dimplex_wp_stoerung
+        state: "on"
+    action:
+      - variables:
+          text: >-
+            Die Wärmepumpe meldet eine Störung.
+            Störung: {{ states('sensor.dimplex_wp_stoermeldung') }}.
+            Sperre: {{ states('sensor.dimplex_wp_sperrmeldung') }}.
+            Sensor: {{ states('sensor.dimplex_wp_sensorfehler') }}.
+            Status: {{ states('sensor.dimplex_wp_statusmeldung') }}.
+      - action: persistent_notification.create
+        data:
+          notification_id: dimplex_stoerung
+          title: "⚠️ Wärmepumpe Störung"
+          message: "{{ text }}"
+      - action: notify.mobile_app_dein_geraet  # TODO: Anpassen (Empfänger)
+        continue_on_error: true
+        data:
+          title: "⚠️ Wärmepumpe Störung"
+          message: "{{ text }}"
+
+  # --- Heizkurve schreiben (UI -> WP) ---
+  - id: dimplex_hk1_heizkurve_schreiben
+    alias: "Dimplex: HK1 Heizkurve schreiben"
+    description: >-
+      Schreibt Endpunkt (Register 5038) und Parallelverschiebung (Register 5036,
+      Wert + 19) in die Wärmepumpe, liest zurück und meldet, wenn der Wert
+      nicht übernommen wurde.
+    # queued: Änderungen kurz nacheinander werden der Reihe nach geschrieben,
+    # es laufen nie zwei Modbus-Schreibzugriffe gleichzeitig.
+    mode: queued
+    max: 6
+    triggers:
+      - trigger: state
+        entity_id: input_number.dimplex_hk1_heizkurve_endpunkt
+        id: endpunkt
+        for:
+          seconds: 3  # TODO: Anpassen (Entprellung bei mehrfachem Tippen)
+      - trigger: state
+        entity_id: input_number.dimplex_hk1_heizkurve_parallel
+        id: parallel
+        for:
+          seconds: 3  # TODO: Anpassen
+    actions:
+      # Werte erst jetzt lesen, nicht beim Auslösen: In der Warteschlange
+      # kann sich der Helper inzwischen geändert haben.
+      - variables:
+          lesesensor: >-
+            {{ 'sensor.dimplex_wp_heizkurve_endpunkt_lesen' if trigger.id == 'endpunkt'
+               else 'sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen' }}
+          ziel: "{{ states(trigger.entity_id) | int(0) }}"
+          ist: "{{ states(lesesensor) | int(-99) }}"
+      # Abbruch, wenn die Wärmepumpe nicht lesbar ist (Neustart, Modbus weg)
+      # oder der Wert dort schon stimmt (z. B. nach der Synchronisierung).
+      - condition: template
+        value_template: "{{ has_value(lesesensor) and ist != ziel }}"
+      - choose:
+          - conditions:
+              - condition: trigger
+                id: endpunkt
+            sequence:
+              - action: modbus.write_register
+                data:
+                  hub: dimplex_wp
+                  slave: 1
+                  address: 5038
+                  value: "{{ ziel }}"
+          - conditions:
+              - condition: trigger
+                id: parallel
+            sequence:
+              - action: modbus.write_register
+                data:
+                  hub: dimplex_wp
+                  slave: 1
+                  address: 5036
+                  value: "{{ ziel + 19 }}"
+      - delay:
+          seconds: 2
+      - action: homeassistant.update_entity
+        target:
+          entity_id: "{{ lesesensor }}"
+      - delay:
+          seconds: 1
+      # Kontrolle: Steht der geschriebene Wert jetzt in der Wärmepumpe?
+      - if:
+          - condition: template
+            value_template: "{{ states(lesesensor) | int(-99) != ziel }}"
+        then:
+          - action: persistent_notification.create
+            data:
+              notification_id: dimplex_heizkurve_schreibfehler
+              title: "Wärmepumpe: Heizkurve"
+              message: >-
+                {{ 'Endpunkt' if trigger.id == 'endpunkt' else 'Parallelverschiebung' }}
+                {{ ziel }} wurde nicht übernommen. In der Wärmepumpe steht
+                {{ states(lesesensor) }}.
+          # Helper auf den echten Wert zurückstellen, aber nur wenn inzwischen
+          # nichts Neues eingestellt wurde und der Wert im erlaubten Bereich liegt.
+          - if:
+              - condition: template
+                value_template: >-
+                  {% set w = states(lesesensor) | float(none) %}
+                  {{ w is not none
+                     and w >= state_attr(trigger.entity_id, 'min')
+                     and w <= state_attr(trigger.entity_id, 'max')
+                     and states(trigger.entity_id) | int(0) == ziel }}
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: "{{ trigger.entity_id }}"
+                data:
+                  value: "{{ states(lesesensor) | float }}"
+
+  # --- Heizkurve lesen (WP -> UI) ---
+  - id: dimplex_hk1_heizkurve_sync
+    alias: "Dimplex: HK1 Heizkurve synchronisieren"
+    description: >-
+      Übernimmt Änderungen aus der Wärmepumpe (Display, App) in die Helper.
+      Gleicht immer nur den Wert ab, dessen Lesesensor sich geändert hat;
+      beim HA-Start nach 60 Sekunden beide.
+    mode: queued
+    max: 6
+    triggers:
+      - trigger: homeassistant
+        event: start
+        id: start
+      - trigger: state
+        entity_id: sensor.dimplex_wp_heizkurve_endpunkt_lesen
+        id: endpunkt
+      - trigger: state
+        entity_id: sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen
+        id: parallel
+    actions:
+      # Beim Start warten, bis Modbus gültige Werte liefert.
+      - if:
+          - condition: trigger
+            id: start
+        then:
+          - delay:
+              seconds: 60  # TODO: Anpassen
+      - repeat:
+          for_each:
+            - id: endpunkt
+              sensor: sensor.dimplex_wp_heizkurve_endpunkt_lesen
+              helper: input_number.dimplex_hk1_heizkurve_endpunkt
+            - id: parallel
+              sensor: sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen
+              helper: input_number.dimplex_hk1_heizkurve_parallel
+          sequence:
+            - if:
+                - condition: template
+                  value_template: >-
+                    {% set wert = states(repeat.item.sensor) | float(none) %}
+                    {{ trigger.id in ['start', repeat.item.id]
+                       and wert is not none
+                       and wert >= state_attr(repeat.item.helper, 'min')
+                       and wert <= state_attr(repeat.item.helper, 'max')
+                       and wert != states(repeat.item.helper) | float(none)
+                       and (trigger.id == 'start'
+                            or (now() - states[repeat.item.helper].last_changed).total_seconds() > 15) }}
+              then:
+                - action: input_number.set_value
+                  target:
+                    entity_id: "{{ repeat.item.helper }}"
+                  data:
+                    value: "{{ states(repeat.item.sensor) | float }}"

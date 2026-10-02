@@ -1,0 +1,1839 @@
+###############################################################################
+# DASHBOARD "HEIZUNG" - Dimplex System M
+#
+# Einbau: Einstellungen -> Dashboards -> Dashboard hinzufügen (leer anlegen),
+# dann im Dashboard: Stift -> drei Punkte -> "Raw-Konfigurationseditor" und
+# den gesamten Inhalt dieser Datei einfügen.
+#
+# Sechs Ansichten: Übersicht, Kältekreis, Warmwasser, Heizkreis, Energie,
+# Wartung. Ausgelegt für ein 12-Zoll-Tablet im Querformat.
+#
+# BENÖTIGT (über HACS):
+#   - plotly-graph-card       (Heizkurven-Diagramm)
+#   - apexcharts-card         (Verläufe und Monatswerte)
+#   - lovelace-heat-pump-card (Anlagenbild in der Übersicht)
+#   - card-mod                (Hintergrund des Heizkurven-Diagramms)
+#   - Theme "ios-dark-mode-blue-red". Ohne dieses Theme die Zeilen "theme:"
+#     löschen oder ein eigenes eintragen.
+#
+# ANPASSEN:
+#   - sensor.shellyem3_xxxxxxxxxxxx_channel_*_power (Ansicht "Energie"):
+#     eigene Leistungssensoren je Phase, oder den Abschnitt löschen.
+###############################################################################
+title: Heizung
+views:
+  - badges:
+      - entity: sensor.dimplex_wp_temperatur_aussentemperatur
+        icon: mdi:thermometer
+        name: Außen
+        show_name: true
+        type: entity
+      - color: orange
+        entity: sensor.dimplex_wp_temperatur_warmwasser
+        icon: mdi:water-boiler
+        name: Warmwasser
+        show_name: true
+        type: entity
+      - entity: sensor.dimplex_wp_heizwasser_anlagendruck
+        icon: mdi:gauge
+        name: Anlagendruck
+        show_name: true
+        type: entity
+      - color: green
+        entity: sensor.dimplex_wp_cop_monat
+        icon: mdi:leaf
+        name: COP Monat
+        show_name: true
+        type: entity
+      - color: red
+        entity: binary_sensor.dimplex_wp_stoerung
+        icon: mdi:alert-circle
+        name: Störung
+        show_name: true
+        type: entity
+        visibility:
+          - condition: state
+            entity: binary_sensor.dimplex_wp_stoerung
+            state: 'on'
+    dense_section_placement: true
+    header:
+      badges_position: bottom
+      card:
+        content: |-
+          # Wärmepumpe
+          {{ states('sensor.dimplex_wp_status') }} · {{ states('sensor.dimplex_wp_statusmeldung') }} · Modus {{ states('sensor.dimplex_wp_betriebsmodus') }}
+        text_only: true
+        type: markdown
+      layout: responsive
+    icon: mdi:heat-pump-outline
+    max_columns: 4
+    path: status
+    sections:
+      - cards:
+          - heading: Anlage
+            heading_style: title
+            icon: mdi:heat-pump
+            type: heading
+          - additionalHeating: binary_sensor.dimplex_wp_waermeerzeuger_2_e10
+            additionalLabel000: Status
+            additionalLabel001: Modus
+            additionalLabel002: Wärmeleistung
+            additionalLabel003: Volumenstrom
+            additionalLabel004: Hochdruck
+            additionalLabel005: Niederdruck
+            additionalLabel006: Frequenz
+            additionalLabel007: COP Monat
+            additionalValue000: sensor.dimplex_wp_statusmeldung
+            additionalValue001: sensor.dimplex_wp_betriebsmodus
+            additionalValue002: sensor.dimplex_wp_leistung_thermisch_w
+            additionalValue003: sensor.dimplex_wp_volumenstrom
+            additionalValue004: sensor.dimplex_wp_hochdruck
+            additionalValue005: sensor.dimplex_wp_niederdruck
+            additionalValue006: sensor.dimplex_wp_inverterfrequenz
+            additionalValue007: sensor.dimplex_wp_cop_monat
+            compressorRunning: binary_sensor.dimplex_wp_verdichter_1
+            compressorValue: sensor.dimplex_wp_leistung_elektrisch_w
+            error: binary_sensor.dimplex_wp_stoerung
+            grid_options:
+              columns: full
+              rows: auto
+            heaterRodWW: binary_sensor.dimplex_wp_heizstab_ausgang
+            heatingCircuitPumpRunning: binary_sensor.dimplex_wp_heizungspumpe_m13
+            heatingCircuitType1: underfloor
+            heatingCircuitType2: 'off'
+            heatingCircuitType3: 'off'
+            heatingPumpHeatingMode: binary_sensor.dimplex_wp_heizungspumpe_m13
+            heatingPumpHotWaterMode: binary_sensor.dimplex_wp_warmwasserpumpe_m18
+            heatingPumpStatusOnOff: binary_sensor.dimplex_wp_laeuft
+            heatingPumpType: A2W
+            hpRunning: binary_sensor.dimplex_wp_primaerpumpe_m11_ventilator_m2
+            outdoorTemperature: sensor.dimplex_wp_temperatur_aussentemperatur
+            refluxTemperatureHeating: sensor.dimplex_wp_temperatur_ruecklauf_waermepumpe
+            storageChargingPumpRunning: binary_sensor.dimplex_wp_zusatzumwaelzpumpe
+            supplyTemperature: sensor.dimplex_wp_temperatur_vorlauf
+            supplyTemperatureHeating: sensor.dimplex_wp_temperatur_vorlauf
+            tankHP: false
+            tankTempWWUp: sensor.dimplex_wp_temperatur_warmwasser
+            tankWW: true
+            title: Dimplex System M
+            type: custom:heat-pump-card
+            warning: binary_sensor.dimplex_wp_evu_sperre
+            wwHeatingValve: binary_sensor.dimplex_wp_warmwasserpumpe_m18
+            tankWWSource: heatPump
+        column_span: 2
+        type: grid
+      - cards:
+          - heading: Betrieb
+            heading_style: title
+            icon: mdi:play-circle-outline
+            type: heading
+          - color: green
+            entity: sensor.dimplex_wp_status
+            grid_options:
+              columns: 12
+            icon: mdi:heat-pump
+            name: Wärmepumpe
+            state_content:
+              - state
+              - last_changed
+            type: tile
+          - color: deep-orange
+            entity: binary_sensor.dimplex_wp_anforderung_heizen
+            grid_options:
+              columns: 6
+            icon: mdi:radiator
+            name: Anforderung Heizen
+            type: tile
+          - color: orange
+            entity: binary_sensor.dimplex_wp_anforderung_warmwasser
+            grid_options:
+              columns: 6
+            icon: mdi:water-boiler
+            name: Anforderung Warmwasser
+            type: tile
+          - color: deep-orange
+            entity: sensor.dimplex_wp_leistung_thermisch
+            grid_options:
+              columns: 6
+            icon: mdi:fire
+            name: Wärmeleistung
+            type: tile
+          - color: amber
+            entity: sensor.dimplex_wp_leistung_elektrisch
+            grid_options:
+              columns: 6
+            icon: mdi:lightning-bolt
+            name: Stromaufnahme
+            type: tile
+          - color: blue
+            entity: sensor.dimplex_wp_volumenstrom
+            grid_options:
+              columns: 6
+            icon: mdi:waves-arrow-right
+            name: Volumenstrom
+            type: tile
+          - color: purple
+            entity: sensor.dimplex_wp_inverterfrequenz
+            grid_options:
+              columns: 6
+            icon: mdi:sine-wave
+            name: Verdichterfrequenz
+            type: tile
+          - entity: input_select.dimplex_betriebsmodus_steuerung
+            features:
+              - type: select-options
+            grid_options:
+              columns: 12
+            icon: mdi:cog-outline
+            name: Betriebsmodus
+            type: tile
+        type: grid
+      - cards:
+          - heading: Temperaturen
+            heading_style: title
+            icon: mdi:thermometer
+            type: heading
+          - color: blue-grey
+            entity: sensor.dimplex_wp_temperatur_aussentemperatur
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer
+            name: Außen
+            type: tile
+          - color: orange
+            entity: sensor.dimplex_wp_temperatur_warmwasser
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:water-thermometer
+            name: Warmwasser
+            type: tile
+          - color: deep-orange
+            entity: sensor.dimplex_wp_temperatur_vorlauf
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-chevron-up
+            name: Vorlauf
+            type: tile
+          - color: blue
+            entity: sensor.dimplex_wp_temperatur_ruecklauf_waermepumpe
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-chevron-down
+            name: Rücklauf
+            type: tile
+          - color: teal
+            entity: sensor.dimplex_wp_temperatur_ruecklauf
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:home-thermometer-outline
+            name: Heizkreis Ist
+            type: tile
+          - color: grey
+            entity: sensor.dimplex_wp_temperatur_ruecklauf_soll
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:target
+            name: Heizkreis Soll
+            type: tile
+        type: grid
+      - cards:
+          - heading: Effizienz
+            heading_style: title
+            icon: mdi:leaf
+            type: heading
+          - color: green
+            entity: sensor.dimplex_wp_cop
+            grid_options:
+              columns: 6
+            icon: mdi:gauge
+            name: COP aktuell
+            type: tile
+            visibility:
+              - condition: state
+                entity: sensor.dimplex_wp_cop
+                state_not: unavailable
+              - condition: state
+                entity: sensor.dimplex_wp_cop
+                state_not: unknown
+          - color: green
+            entity: sensor.dimplex_wp_cop_gemessen
+            grid_options:
+              columns: 6
+            icon: mdi:gauge-low
+            name: COP gegen Shelly
+            type: tile
+            visibility:
+              - condition: state
+                entity: sensor.dimplex_wp_cop
+                state_not: unavailable
+              - condition: state
+                entity: sensor.dimplex_wp_cop
+                state_not: unknown
+          - color: green
+            entity: sensor.dimplex_wp_cop_monat
+            grid_options:
+              columns: 6
+            icon: mdi:calendar-month
+            name: COP Monat
+            type: tile
+          - color: green
+            entity: sensor.dimplex_wp_cop_vormonat
+            grid_options:
+              columns: 6
+            icon: mdi:calendar-arrow-left
+            name: COP Vormonat
+            type: tile
+          - color: green
+            entity: sensor.dimplex_wp_cop_jahr
+            grid_options:
+              columns: 6
+            icon: mdi:calendar-star
+            name: COP Jahr
+            type: tile
+          - color: green
+            entity: sensor.wp_cop
+            grid_options:
+              columns: 6
+            icon: mdi:calendar-week
+            name: COP 7 Tage
+            type: tile
+          - color: cyan
+            entity: sensor.dimplex_wp_spreizung_heizkreis
+            grid_options:
+              columns: 6
+            icon: mdi:arrow-expand-vertical
+            name: Spreizung
+            type: tile
+          - color: light-green
+            entity: sensor.dimplex_wp_leistung_umwelt
+            grid_options:
+              columns: 6
+            icon: mdi:pine-tree
+            name: Umweltleistung
+            type: tile
+        type: grid
+      - cards:
+          - heading: Komponenten
+            heading_style: title
+            icon: mdi:cogs
+            type: heading
+          - color: green
+            entity: binary_sensor.dimplex_wp_verdichter_1
+            grid_options:
+              columns: 6
+            icon: mdi:engine
+            name: Verdichter
+            type: tile
+          - color: green
+            entity: binary_sensor.dimplex_wp_primaerpumpe_m11_ventilator_m2
+            grid_options:
+              columns: 6
+            icon: mdi:fan
+            name: Ventilator
+            type: tile
+          - color: blue
+            entity: binary_sensor.dimplex_wp_zusatzumwaelzpumpe
+            grid_options:
+              columns: 6
+            icon: mdi:pump
+            name: Erzeugerkreispumpe M16
+            type: tile
+          - color: deep-orange
+            entity: binary_sensor.dimplex_wp_heizungspumpe_m13
+            grid_options:
+              columns: 6
+            icon: mdi:pump
+            name: Heizkreispumpe M13
+            type: tile
+          - color: orange
+            entity: binary_sensor.dimplex_wp_warmwasserpumpe_m18
+            grid_options:
+              columns: 6
+            icon: mdi:water-pump
+            name: Warmwasserpumpe M18
+            type: tile
+          - color: cyan
+            entity: binary_sensor.dimplex_wp_abtauung
+            grid_options:
+              columns: 6
+            icon: mdi:snowflake-melt
+            name: Abtauung
+            type: tile
+          - color: red
+            entity: binary_sensor.dimplex_wp_waermeerzeuger_2_e10
+            grid_options:
+              columns: 6
+            icon: mdi:heating-coil
+            name: 2. Wärmeerzeuger E10
+            type: tile
+          - color: red
+            entity: binary_sensor.dimplex_wp_heizstab_ausgang
+            grid_options:
+              columns: 6
+            icon: mdi:heating-coil
+            name: Flanschheizung E9
+            type: tile
+          - color: red
+            entity: binary_sensor.dimplex_wp_evu_sperre
+            grid_options:
+              columns: 6
+            icon: mdi:transmission-tower-off
+            name: EVU-Sperre
+            type: tile
+          - color: red
+            entity: binary_sensor.dimplex_wp_stoerung
+            grid_options:
+              columns: 6
+            icon: mdi:alert-circle-outline
+            name: Störung
+            type: tile
+        type: grid
+    theme: ios-dark-mode-blue-red
+    title: Übersicht
+    type: sections
+  - dense_section_placement: true
+    icon: mdi:snowflake-thermometer
+    max_columns: 3
+    path: kaeltekreis
+    sections:
+      - cards:
+          - heading: Kältemitteldruck
+            heading_style: title
+            icon: mdi:gauge
+            type: heading
+          - entity: sensor.dimplex_wp_hochdruck
+            grid_options:
+              columns: 6
+            max: 45
+            min: 0
+            name: Hochdruck
+            needle: true
+            type: gauge
+          - entity: sensor.dimplex_wp_niederdruck
+            grid_options:
+              columns: 6
+            max: 20
+            min: 0
+            name: Niederdruck
+            needle: true
+            type: gauge
+          - color: purple
+            entity: sensor.dimplex_wp_inverterfrequenz
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:sine-wave
+            name: Verdichterfrequenz
+            type: tile
+          - color: amber
+            entity: sensor.dimplex_wp_ueberhitzung
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-plus
+            name: Überhitzung
+            type: tile
+          - color: green
+            entity: binary_sensor.dimplex_wp_verdichter_1
+            grid_options:
+              columns: 6
+            icon: mdi:engine
+            name: Verdichter
+            type: tile
+          - color: green
+            entity: binary_sensor.dimplex_wp_primaerpumpe_m11_ventilator_m2
+            grid_options:
+              columns: 6
+            icon: mdi:fan
+            name: Ventilator
+            type: tile
+        type: grid
+      - cards:
+          - heading: Temperaturen im Kältekreis
+            heading_style: title
+            icon: mdi:thermometer-lines
+            type: heading
+          - color: deep-orange
+            entity: sensor.dimplex_wp_temperatur_verfluessigung
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-high
+            name: Verflüssigung
+            type: tile
+          - color: blue
+            entity: sensor.dimplex_wp_temperatur_verdampfung
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-low
+            name: Verdampfung
+            type: tile
+          - color: cyan
+            entity: sensor.dimplex_wp_temperatur_sauggas
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:pipe
+            name: Sauggas
+            type: tile
+          - color: blue-grey
+            entity: sensor.dimplex_wp_temperatur_aussentemperatur
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:weather-windy
+            name: Außenluft
+            type: tile
+          - color: cyan
+            entity: binary_sensor.dimplex_wp_abtauung
+            grid_options:
+              columns: 6
+            icon: mdi:snowflake-melt
+            name: Abtauung
+            type: tile
+          - color: grey
+            entity: sensor.dimplex_wp_taktungen_verdichter_gesamt
+            grid_options:
+              columns: 6
+            icon: mdi:counter
+            name: Verdichterstarts
+            type: tile
+        type: grid
+      - cards:
+          - heading: Hydraulik
+            heading_style: title
+            icon: mdi:pipe-valve
+            type: heading
+          - entity: sensor.dimplex_wp_heizwasser_anlagendruck
+            grid_options:
+              columns: 6
+            max: 3
+            min: 0
+            name: Anlagendruck
+            needle: true
+            segments:
+              - color: '#EF5350'
+                from: 0
+              - color: '#FFCA28'
+                from: 1
+              - color: '#66BB6A'
+                from: 1.3
+              - color: '#EF5350'
+                from: 2.5
+            type: gauge
+          - color: blue
+            entity: sensor.dimplex_wp_volumenstrom
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:waves-arrow-right
+            name: Volumenstrom
+            type: tile
+          - color: deep-orange
+            entity: sensor.dimplex_wp_temperatur_vorlauf
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-chevron-up
+            name: Vorlauf
+            type: tile
+          - color: blue
+            entity: sensor.dimplex_wp_temperatur_ruecklauf_waermepumpe
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-chevron-down
+            name: Rücklauf
+            type: tile
+          - color: cyan
+            entity: sensor.dimplex_wp_spreizung_heizkreis
+            grid_options:
+              columns: 12
+            icon: mdi:arrow-expand-vertical
+            name: Spreizung
+            type: tile
+        type: grid
+      - cards:
+          - heading: Drücke und Verdichterfrequenz
+            heading_style: title
+            icon: mdi:chart-line
+            type: heading
+          - apex_config:
+              chart:
+                height: 300
+              legend:
+                show: true
+              tooltip:
+                shared: true
+            graph_span: 24h
+            grid_options:
+              columns: full
+            header:
+              colorize_states: true
+              show: true
+              show_states: true
+              title: Letzte 24 Stunden
+            series:
+              - color: '#FF7043'
+                entity: sensor.dimplex_wp_hochdruck
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Hochdruck
+                stroke_width: 2
+                yaxis_id: bar
+              - color: '#42A5F5'
+                entity: sensor.dimplex_wp_niederdruck
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Niederdruck
+                stroke_width: 2
+                yaxis_id: bar
+              - color: '#B0BEC5'
+                entity: sensor.dimplex_wp_inverterfrequenz
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: max
+                name: Frequenz
+                opacity: 0.2
+                stroke_width: 1
+                type: area
+                yaxis_id: hz
+            type: custom:apexcharts-card
+            yaxis:
+              - apex_config:
+                  tickAmount: 5
+                  title:
+                    text: bar
+                decimals: 0
+                id: bar
+                max: 50
+                min: 0
+              - apex_config:
+                  tickAmount: 5
+                  title:
+                    text: Hz
+                decimals: 0
+                id: hz
+                max: 100
+                min: 0
+                opposite: true
+        column_span: 3
+        type: grid
+      - cards:
+          - heading: Temperaturen im Kältekreis
+            heading_style: title
+            icon: mdi:chart-line
+            type: heading
+          - apex_config:
+              chart:
+                height: 300
+              legend:
+                show: true
+              tooltip:
+                shared: true
+            graph_span: 24h
+            grid_options:
+              columns: full
+            header:
+              colorize_states: true
+              show: true
+              show_states: true
+              title: Letzte 24 Stunden
+            series:
+              - color: '#FF7043'
+                entity: sensor.dimplex_wp_temperatur_verfluessigung
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Verflüssigung
+                stroke_width: 2
+              - color: '#42A5F5'
+                entity: sensor.dimplex_wp_temperatur_verdampfung
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Verdampfung
+                stroke_width: 2
+              - color: '#66BB6A'
+                entity: sensor.dimplex_wp_temperatur_sauggas
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Sauggas
+                stroke_width: 2
+              - color: '#90A4AE'
+                entity: sensor.dimplex_wp_temperatur_aussentemperatur
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Außenluft
+                stroke_width: 2
+            type: custom:apexcharts-card
+        column_span: 3
+        type: grid
+    theme: ios-dark-mode-blue-red
+    title: Kältekreis
+    type: sections
+  - dense_section_placement: true
+    icon: mdi:water-boiler
+    max_columns: 3
+    path: warmwasser
+    sections:
+      - cards:
+          - heading: Speicher
+            heading_style: title
+            icon: mdi:water-boiler
+            type: heading
+          - color: orange
+            entity: sensor.dimplex_wp_temperatur_warmwasser
+            features:
+              - hours_to_show: 48
+                type: trend-graph
+            grid_options:
+              columns: 12
+            icon: mdi:water-thermometer
+            name: Speichertemperatur
+            type: tile
+          - color: grey
+            entity: sensor.dimplex_wp_temperatur_warmwasser_soll_2
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-check
+            name: Soll aktiv
+            type: tile
+          - color: grey
+            entity: sensor.dimplex_wp_temperatur_warmwasser_soll_lesen
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-lines
+            name: Soll eingestellt
+            type: tile
+          - color: orange
+            entity: binary_sensor.dimplex_wp_anforderung_warmwasser
+            grid_options:
+              columns: 6
+            icon: mdi:water-alert
+            name: Anforderung
+            type: tile
+          - color: orange
+            entity: binary_sensor.dimplex_wp_warmwasserpumpe_m18
+            grid_options:
+              columns: 6
+            icon: mdi:water-pump
+            name: Ladepumpe M18
+            type: tile
+        type: grid
+      - cards:
+          - heading: Steuerung
+            heading_style: title
+            icon: mdi:tune-variant
+            type: heading
+          - color: deep-orange
+            entity: input_number.dimplex_warmwasser_soll_steuerung
+            features:
+              - style: slider
+                type: numeric-input
+            grid_options:
+              columns: 12
+            icon: mdi:thermometer-plus
+            name: Solltemperatur
+            type: tile
+          - color: red
+            entity: input_boolean.dimplex_warmwasser_boost
+            features:
+              - type: toggle
+            grid_options:
+              columns: 12
+            icon: mdi:fire
+            name: Boost
+            type: tile
+          - entity: input_number.dimplex_warmwasser_normal
+            features:
+              - style: buttons
+                type: numeric-input
+            grid_options:
+              columns: 12
+            icon: mdi:thermometer-water
+            name: Normaltemperatur
+            type: tile
+          - entity: input_number.dimplex_warmwasser_boost_temp
+            features:
+              - style: buttons
+                type: numeric-input
+            grid_options:
+              columns: 12
+            icon: mdi:water-plus
+            name: Boost-Temperatur
+            type: tile
+        type: grid
+      - cards:
+          - heading: Zähler
+            heading_style: title
+            icon: mdi:counter
+            type: heading
+          - color: grey
+            entity: sensor.dimplex_wp_taktungen_verdichter_warmwasser
+            grid_options:
+              columns: 12
+            icon: mdi:counter
+            name: Verdichterstarts Warmwasser
+            type: tile
+          - color: grey
+            entity: sensor.dimplex_wp_betriebsstunden_warmwasserpumpe
+            grid_options:
+              columns: 12
+            icon: mdi:timer-outline
+            name: Laufzeit Ladepumpe
+            type: tile
+          - color: orange
+            entity: sensor.dimplex_wp_waermemenge_warmwasser_gesamt
+            grid_options:
+              columns: 12
+            icon: mdi:fire
+            name: Wärmemenge Warmwasser
+            type: tile
+        type: grid
+      - cards:
+          - heading: Verlauf
+            heading_style: title
+            icon: mdi:chart-line
+            type: heading
+          - apex_config:
+              chart:
+                height: 300
+              legend:
+                show: true
+              tooltip:
+                shared: true
+            graph_span: 48h
+            grid_options:
+              columns: full
+            header:
+              colorize_states: true
+              show: true
+              show_states: true
+              title: Warmwasser · letzte 48 Stunden
+            series:
+              - color: '#FFA726'
+                entity: sensor.dimplex_wp_temperatur_warmwasser
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Speicher
+                stroke_width: 2
+              - color: '#B0BEC5'
+                curve: stepline
+                entity: sensor.dimplex_wp_temperatur_warmwasser_soll_2
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Soll aktiv
+                stroke_width: 2
+            type: custom:apexcharts-card
+        column_span: 3
+        type: grid
+    theme: ios-dark-mode-blue-red
+    title: Warmwasser
+    type: sections
+  - dense_section_placement: true
+    icon: mdi:radiator
+    max_columns: 3
+    path: heizkurve
+    sections:
+      - cards:
+          - heading: Heizkurve
+            heading_style: title
+            icon: mdi:chart-bell-curve
+            type: heading
+          - config:
+              displayModeBar: false
+              scrollZoom: false
+            disable_pinch_to_zoom: true
+            entities:
+              - entity: sensor.dimplex_wp_temperatur_aussentemperatur
+                fn: |-
+                  $fn ({ hass, vars }) => {
+                    const num = (id, fb) => { const s = hass.states[id]; const n = s ? parseFloat(s.state) : NaN; return Number.isFinite(n) ? n : fb; };
+                    const ep = num('sensor.dimplex_wp_heizkurve_endpunkt_lesen', num('input_number.dimplex_hk1_heizkurve_endpunkt', null));
+                    const pv = num('sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen', num('input_number.dimplex_hk1_heizkurve_parallel', 0));
+                    const ta = num('sensor.dimplex_wp_temperatur_aussentemperatur', null);
+                    const sollWp = num('sensor.dimplex_wp_temperatur_ruecklauf_soll', null);
+                    const ist = num('sensor.dimplex_wp_temperatur_ruecklauf', null);
+                    const P = 0.733;
+                    const f = (t, e) => 20 + (e - 20) * Math.pow(Math.min(1, Math.max(0, (20 - t) / 40)), P);
+                    const xs = []; for (let t = 20; t >= -20; t -= 1) xs.push(t);
+                    const ok = ep !== null;
+                    const de = (n, d = 1) => n.toFixed(d).replace('.', ',').replace('-', '−');
+                    const lo = ok && Math.max(22, ep - 4) < ep ? Math.max(22, ep - 4) : null;
+                    const hi = ok && Math.min(40, ep + 4) > ep ? Math.min(40, ep + 4) : null;
+                    const heizt = sollWp !== null && sollWp >= 18;
+                    const yKurve = ok && ta !== null ? f(ta, ep) + pv : null;
+                    const yNow = ta === null ? null : (heizt ? sollWp : yKurve);
+                    const xMax = Math.max(22, (ta ?? 20) + 2);
+                    const xMin = Math.min(-22, (ta ?? -20) - 2);
+                    const yMin = Math.min(18, 20 + pv - 2);
+                    const yMax = Math.max(30, (hi ?? ep ?? 28) + pv + 2);
+                    const istOk = ist !== null && ta !== null;
+                    const istPlot = istOk ? Math.min(yMax - 0.4, Math.max(yMin + 0.4, ist)) : null;
+                    const istSym = !istOk ? 'circle' : (ist > yMax - 0.4 ? 'triangle-up' : (ist < yMin + 0.4 ? 'triangle-down' : 'circle'));
+                    vars.hk = { ep, pv, ta, sollWp, ist, f, xs, ok, de, lo, hi, heizt, yKurve, yNow, istPlot, istSym, xMax, xMin, yMin, yMax };
+                  }
+                internal: true
+              - entity: sensor.dimplex_wp_heizkurve_endpunkt_lesen
+                internal: true
+              - entity: sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen
+                internal: true
+              - entity: sensor.dimplex_wp_temperatur_ruecklauf_soll
+                internal: true
+              - entity: sensor.dimplex_wp_temperatur_ruecklauf
+                internal: true
+              - entity: ''
+                hoverinfo: skip
+                line:
+                  color: rgba(176,190,197,0.45)
+                  shape: spline
+                  width: 1.5
+                mode: lines+text
+                name: flacher
+                showlegend: false
+                text: '$ex vars.hk.lo !== null ? vars.hk.xs.map((t, i, a) => i === a.length - 1 ? ''Endpunkt '' + vars.hk.lo + '' °C'' : '''') : []'
+                textfont:
+                  color: rgba(176,190,197,0.9)
+                  size: 11
+                textposition: bottom left
+                x: '$ex vars.hk.lo !== null ? vars.hk.xs : []'
+                y: '$ex vars.hk.lo !== null ? vars.hk.xs.map(t => vars.hk.f(t, vars.hk.lo) + vars.hk.pv) : []'
+              - entity: ''
+                hoverinfo: skip
+                line:
+                  color: rgba(176,190,197,0.45)
+                  shape: spline
+                  width: 1.5
+                mode: lines+text
+                name: steiler
+                showlegend: false
+                text: '$ex vars.hk.hi !== null ? vars.hk.xs.map((t, i, a) => i === a.length - 1 ? ''Endpunkt '' + vars.hk.hi + '' °C'' : '''') : []'
+                textfont:
+                  color: rgba(176,190,197,0.9)
+                  size: 11
+                textposition: top left
+                x: '$ex vars.hk.hi !== null ? vars.hk.xs : []'
+                y: '$ex vars.hk.hi !== null ? vars.hk.xs.map(t => vars.hk.f(t, vars.hk.hi) + vars.hk.pv) : []'
+              - entity: ''
+                hoverinfo: skip
+                line:
+                  color: rgba(255,255,255,0.55)
+                  dash: dash
+                  shape: spline
+                  width: 2
+                mode: lines
+                name: ohne Parallelverschiebung
+                showlegend: $ex vars.hk.ok && vars.hk.pv !== 0
+                x: '$ex vars.hk.ok && vars.hk.pv !== 0 ? vars.hk.xs : []'
+                y: '$ex vars.hk.ok && vars.hk.pv !== 0 ? vars.hk.xs.map(t => vars.hk.f(t, vars.hk.ep)) : []'
+              - entity: ''
+                fill: tozeroy
+                fillcolor: rgba(255,112,67,0.10)
+                hovertemplate: Außen %{x:.0f} °C<br>Soll %{y:.1f} °C<extra></extra>
+                line:
+                  color: '#FF7043'
+                  shape: spline
+                  width: 4
+                mode: lines
+                name: Heizkurve
+                x: '$ex vars.hk.ok ? vars.hk.xs : []'
+                y: '$ex vars.hk.ok ? vars.hk.xs.map(t => vars.hk.f(t, vars.hk.ep) + vars.hk.pv) : []'
+              - entity: ''
+                hoverinfo: skip
+                line:
+                  color: rgba(255,202,40,0.8)
+                  dash: dot
+                  shape: linear
+                  width: 1
+                mode: lines
+                name: Hilfslinie
+                showlegend: false
+                x: '$ex vars.hk.yNow === null ? [] : [vars.hk.ta, vars.hk.ta, vars.hk.xMax]'
+                y: '$ex vars.hk.yNow === null ? [] : [vars.hk.yMin, vars.hk.yNow, vars.hk.yNow]'
+              - entity: ''
+                name: Abweichung
+                showlegend: false
+                hoverinfo: skip
+                mode: lines
+                line:
+                  shape: linear
+                  width: 2
+                  dash: dot
+                  color: rgba(102,187,106,0.75)
+                x: '$ex vars.hk.yNow === null || vars.hk.istPlot === null ? [] : [vars.hk.ta, vars.hk.ta]'
+                y: '$ex vars.hk.yNow === null || vars.hk.istPlot === null ? [] : [vars.hk.yNow, vars.hk.istPlot]'
+              - entity: ''
+                name: Soll
+                mode: markers
+                marker:
+                  symbol: circle
+                  size: 17
+                  color: '#FFCA28'
+                  line:
+                    color: '#ffffff'
+                    width: 2
+                hovertemplate: Soll %{y:.1f} °C<extra></extra>
+                x: '$ex vars.hk.yNow === null ? [] : [vars.hk.ta]'
+                y: '$ex vars.hk.yNow === null ? [] : [vars.hk.yNow]'
+              - entity: ''
+                name: Ist
+                mode: markers
+                marker:
+                  symbol: $ex vars.hk.istSym
+                  size: 11
+                  color: '#66BB6A'
+                  line:
+                    color: '#ffffff'
+                    width: 2
+                text: '$ex vars.hk.istPlot === null ? [] : [vars.hk.de(vars.hk.ist) + '' °C'']'
+                hovertemplate: Ist %{text}<extra></extra>
+                x: '$ex vars.hk.istPlot === null ? [] : [vars.hk.ta]'
+                y: '$ex vars.hk.istPlot === null ? [] : [vars.hk.istPlot]'
+            grid_options:
+              columns: full
+            hours_to_show: 1
+            layout:
+              annotations:
+                - align: left
+                  arrowcolor: '#FFCA28'
+                  arrowhead: 0
+                  arrowwidth: 2
+                  ax: '$ex (vars.hk.ta ?? 0) < 5 ? -140 : 110'
+                  ay: '$ex (vars.hk.ta ?? 0) < 5 ? -90 : -150'
+                  bgcolor: '#FFE082'
+                  bordercolor: '#FFCA28'
+                  borderpad: 8
+                  borderwidth: 1
+                  font:
+                    color: '#1c1c1e'
+                    size: 13
+                  showarrow: true
+                  text: '$ex vars.hk.yNow === null ? '''' : ''<b>Außen '' + vars.hk.de(vars.hk.ta) + '' °C</b><br>'' + (vars.hk.heizt ? ''Soll'' : ''Soll laut Kurve'') + '' <b>'' + vars.hk.de(vars.hk.yNow) + '' °C</b>'' + (vars.hk.ist !== null ? ''<br>Ist <b>'' + vars.hk.de(vars.hk.ist) + '' °C</b>'' : '''') + (vars.hk.heizt ? (vars.hk.yKurve !== null && Math.abs(vars.hk.yKurve - vars.hk.sollWp) > 0.5 ? ''<br>laut Kurve '' + vars.hk.de(vars.hk.yKurve) + '' °C'' : '''') : ''<br>Heizbetrieb aus'')'
+                  visible: $ex vars.hk.yNow !== null
+                  x: $ex vars.hk.ta ?? 0
+                  xref: x
+                  y: $ex vars.hk.yNow ?? 20
+                  yref: y
+                - font:
+                    size: 15
+                  showarrow: false
+                  text: Heizkurve nicht verfügbar (Modbus)
+                  visible: $ex !vars.hk.ok
+                  x: 0.5
+                  xref: paper
+                  y: 0.5
+                  yref: paper
+              dragmode: false
+              height: 430
+              hovermode: closest
+              legend:
+                orientation: h
+                x: 0
+                xanchor: left
+                y: 1.02
+                yanchor: bottom
+                bgcolor: rgba(0,0,0,0)
+              margin:
+                t: 44
+                r: 24
+                b: 66
+                l: 68
+              separators: ',.'
+              showlegend: true
+              xaxis:
+                autorange: false
+                dtick: 5
+                fixedrange: true
+                range: $ex [vars.hk.xMax, vars.hk.xMin]
+                ticksuffix: ' °C'
+                title:
+                  text: Außentemperatur
+                  standoff: 10
+                type: linear
+                zeroline: false
+              yaxis:
+                autorange: false
+                dtick: 2
+                fixedrange: true
+                range: $ex [vars.hk.yMin, vars.hk.yMax]
+                ticksuffix: ' °C'
+                title:
+                  text: Solltemperatur Heizkreis
+                type: linear
+                zeroline: false
+              paper_bgcolor: rgba(0,0,0,0)
+              plot_bgcolor: rgba(0,0,0,0)
+              font:
+                family: Roboto, Noto, sans-serif
+                size: 12
+            refresh_interval: auto
+            type: custom:plotly-graph
+            card_mod:
+              style: 'ha-card { background: var(--ha-card-background, var(--card-background-color)) !important; }'
+        column_span: 2
+        type: grid
+      - cards:
+          - heading: Heizkurve einstellen
+            heading_style: title
+            icon: mdi:tune-variant
+            type: heading
+          - color: deep-orange
+            entity: input_number.dimplex_hk1_heizkurve_endpunkt
+            features:
+              - style: buttons
+                type: numeric-input
+            grid_options:
+              columns: 12
+            icon: mdi:chart-bell-curve-cumulative
+            name: Endpunkt bei −20 °C
+            type: tile
+          - color: amber
+            entity: input_number.dimplex_hk1_heizkurve_parallel
+            features:
+              - style: buttons
+                type: numeric-input
+            grid_options:
+              columns: 12
+            icon: mdi:arrow-up-down
+            name: Parallelverschiebung
+            type: tile
+          - heading: Rückmeldung der Wärmepumpe
+            heading_style: subtitle
+            icon: mdi:check-network-outline
+            type: heading
+          - color: grey
+            entity: sensor.dimplex_wp_heizkurve_endpunkt_lesen
+            grid_options:
+              columns: 6
+            icon: mdi:chart-bell-curve-cumulative
+            name: Endpunkt
+            type: tile
+          - color: grey
+            entity: sensor.dimplex_wp_heizkurve_parallelverschiebung_lesen
+            grid_options:
+              columns: 6
+            icon: mdi:arrow-up-down
+            name: Verschiebung
+            type: tile
+        type: grid
+      - cards:
+          - heading: Betrieb
+            heading_style: title
+            icon: mdi:cog-outline
+            type: heading
+          - entity: input_select.dimplex_betriebsmodus_steuerung
+            features:
+              - type: select-options
+            grid_options:
+              columns: 12
+            icon: mdi:cog-outline
+            name: Betriebsmodus
+            type: tile
+          - entity: input_number.dimplex_hk1_absenkung_anhebung
+            features:
+              - style: slider
+                type: numeric-input
+            grid_options:
+              columns: 12
+            icon: mdi:plus-minus-variant
+            name: Absenkung / Anhebung
+            type: tile
+          - color: deep-orange
+            entity: binary_sensor.dimplex_wp_anforderung_heizen
+            grid_options:
+              columns: 6
+            icon: mdi:radiator
+            name: Anforderung
+            type: tile
+          - color: deep-orange
+            entity: binary_sensor.dimplex_wp_heizungspumpe_m13
+            grid_options:
+              columns: 6
+            icon: mdi:pump
+            name: Heizkreispumpe M13
+            type: tile
+        type: grid
+      - cards:
+          - heading: Heizkreis 1
+            heading_style: title
+            icon: mdi:heating-coil
+            type: heading
+          - color: teal
+            entity: sensor.dimplex_wp_temperatur_ruecklauf
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:home-thermometer-outline
+            name: Heizkreis Ist
+            type: tile
+          - color: grey
+            entity: sensor.dimplex_wp_temperatur_ruecklauf_soll
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:target
+            name: Heizkreis Soll
+            type: tile
+          - color: grey
+            entity: sensor.dimplex_wp_regelabweichung
+            grid_options:
+              columns: 6
+            icon: mdi:delta
+            name: Regelabweichung
+            type: tile
+          - color: grey
+            entity: sensor.dimplex_wp_taktungen_verdichter_heizen
+            grid_options:
+              columns: 6
+            icon: mdi:counter
+            name: Verdichterstarts Heizen
+            type: tile
+        type: grid
+      - cards:
+          - heading: Wärmepumpe
+            heading_style: title
+            icon: mdi:heat-pump
+            type: heading
+          - color: deep-orange
+            entity: sensor.dimplex_wp_temperatur_vorlauf
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-chevron-up
+            name: Vorlauf
+            type: tile
+          - color: blue
+            entity: sensor.dimplex_wp_temperatur_ruecklauf_waermepumpe
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer-chevron-down
+            name: Rücklauf
+            type: tile
+          - color: cyan
+            entity: sensor.dimplex_wp_spreizung_heizkreis
+            grid_options:
+              columns: 6
+            icon: mdi:arrow-expand-vertical
+            name: Spreizung
+            type: tile
+          - color: blue-grey
+            entity: sensor.dimplex_wp_temperatur_aussentemperatur
+            grid_options:
+              columns: 6
+            icon: mdi:thermometer
+            name: Außen
+            type: tile
+        type: grid
+      - cards:
+          - heading: Verlauf
+            heading_style: title
+            icon: mdi:chart-line
+            type: heading
+          - apex_config:
+              chart:
+                height: 300
+              legend:
+                show: true
+              tooltip:
+                shared: true
+            graph_span: 48h
+            grid_options:
+              columns: full
+            header:
+              colorize_states: true
+              show: true
+              show_states: true
+              title: Heizkreis · letzte 48 Stunden
+            series:
+              - color: '#FF7043'
+                entity: sensor.dimplex_wp_temperatur_vorlauf
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Vorlauf
+                stroke_width: 2
+              - color: '#42A5F5'
+                entity: sensor.dimplex_wp_temperatur_ruecklauf_waermepumpe
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Rücklauf
+                stroke_width: 2
+              - color: '#66BB6A'
+                entity: sensor.dimplex_wp_temperatur_ruecklauf
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Heizkreis Ist
+                stroke_width: 2
+              - color: '#B0BEC5'
+                curve: stepline
+                entity: sensor.dimplex_wp_temperatur_ruecklauf_soll
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Heizkreis Soll
+                stroke_width: 2
+              - color: '#90A4AE'
+                entity: sensor.dimplex_wp_temperatur_aussentemperatur
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Außen
+                stroke_width: 2
+            type: custom:apexcharts-card
+        column_span: 3
+        type: grid
+    theme: ios-dark-mode-blue-red
+    title: Heizkreis
+    type: sections
+  - dense_section_placement: true
+    icon: mdi:lightning-bolt-circle
+    max_columns: 3
+    path: energie
+    sections:
+      - cards:
+          - heading: Wärme seit Inbetriebnahme
+            heading_style: title
+            icon: mdi:fire
+            type: heading
+          - color: deep-orange
+            entity: sensor.dimplex_wp_waermemenge_gesamt
+            grid_options:
+              columns: 12
+            icon: mdi:fire
+            name: Wärme gesamt
+            type: tile
+          - color: deep-orange
+            entity: sensor.dimplex_wp_waermemenge_heizen_gesamt
+            grid_options:
+              columns: 6
+            icon: mdi:radiator
+            name: Heizen
+            type: tile
+          - color: orange
+            entity: sensor.dimplex_wp_waermemenge_warmwasser_gesamt
+            grid_options:
+              columns: 6
+            icon: mdi:water-boiler
+            name: Warmwasser
+            type: tile
+          - color: green
+            entity: sensor.dimplex_wp_umweltenergie_gesamt
+            grid_options:
+              columns: 12
+            icon: mdi:pine-tree
+            name: davon Umweltenergie
+            type: tile
+        type: grid
+      - cards:
+          - heading: Arbeitszahl
+            heading_style: title
+            icon: mdi:leaf
+            type: heading
+          - color: green
+            entity: sensor.dimplex_wp_cop_monat
+            grid_options:
+              columns: 6
+            icon: mdi:calendar-month
+            name: Laufender Monat
+            type: tile
+          - color: green
+            entity: sensor.dimplex_wp_cop_vormonat
+            grid_options:
+              columns: 6
+            icon: mdi:calendar-arrow-left
+            name: Vormonat
+            type: tile
+          - color: green
+            entity: sensor.dimplex_wp_cop_jahr
+            grid_options:
+              columns: 6
+            icon: mdi:calendar-star
+            name: Jahr
+            type: tile
+          - color: green
+            entity: sensor.wp_cop
+            grid_options:
+              columns: 6
+            icon: mdi:calendar-week
+            name: Letzte 7 Tage
+            type: tile
+          - color: green
+            entity: sensor.dimplex_wp_cop
+            grid_options:
+              columns: 6
+            icon: mdi:gauge
+            name: Aktuell
+            type: tile
+            visibility:
+              - condition: state
+                entity: sensor.dimplex_wp_cop
+                state_not: unavailable
+              - condition: state
+                entity: sensor.dimplex_wp_cop
+                state_not: unknown
+          - color: green
+            entity: sensor.dimplex_wp_cop_gemessen
+            grid_options:
+              columns: 6
+            icon: mdi:gauge-low
+            name: Aktuell gegen Shelly
+            type: tile
+            visibility:
+              - condition: state
+                entity: sensor.dimplex_wp_cop
+                state_not: unavailable
+              - condition: state
+                entity: sensor.dimplex_wp_cop
+                state_not: unknown
+        type: grid
+      - cards:
+          - heading: Strom
+            heading_style: title
+            icon: mdi:lightning-bolt
+            type: heading
+          - color: amber
+            entity: sensor.heizung_stormverbrauch
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:flash
+            name: Aufnahme (Shelly)
+            type: tile
+          - color: amber
+            entity: sensor.dimplex_wp_leistung_elektrisch
+            features:
+              - hours_to_show: 24
+                type: trend-graph
+            grid_options:
+              columns: 6
+            icon: mdi:lightning-bolt
+            name: Aufnahme (Wärmepumpe)
+            type: tile
+          - color: amber
+            entity: sensor.wp_strom_7_tage
+            grid_options:
+              columns: 6
+            icon: mdi:calendar-week
+            name: Strom 7 Tage
+            type: tile
+          - color: deep-orange
+            entity: sensor.wp_warme_7_tage
+            grid_options:
+              columns: 6
+            icon: mdi:calendar-week
+            name: Wärme 7 Tage
+            type: tile
+        type: grid
+      - cards:
+          - heading: Wärme pro Monat
+            heading_style: title
+            icon: mdi:chart-bar-stacked
+            type: heading
+          - apex_config:
+              chart:
+                height: 300
+              legend:
+                show: true
+              tooltip:
+                shared: true
+            graph_span: 12month
+            grid_options:
+              columns: full
+            header:
+              colorize_states: true
+              show: true
+              show_states: false
+              title: Letzte 12 Monate · kWh
+            series:
+              - color: '#FF7043'
+                entity: sensor.dimplex_wp_waermemenge_heizen_gesamt
+                name: Heizen
+                statistics:
+                  align: middle
+                  period: month
+                  type: change
+                type: column
+              - color: '#FFCA28'
+                entity: sensor.dimplex_wp_waermemenge_warmwasser_gesamt
+                name: Warmwasser
+                statistics:
+                  align: middle
+                  period: month
+                  type: change
+                type: column
+            span:
+              offset: -11month
+              start: month
+            stacked: true
+            type: custom:apexcharts-card
+        column_span: 3
+        type: grid
+      - cards:
+          - heading: Strom pro Monat
+            heading_style: title
+            icon: mdi:chart-bar
+            type: heading
+          - apex_config:
+              chart:
+                height: 300
+              legend:
+                show: true
+              tooltip:
+                shared: true
+            graph_span: 12month
+            grid_options:
+              columns: full
+            header:
+              colorize_states: true
+              show: true
+              show_states: false
+              title: Letzte 12 Monate · kWh
+            series:
+              - color: '#FFCA28'
+                entity: sensor.heizungverbrauch
+                name: Strom Heizung
+                statistics:
+                  align: middle
+                  period: month
+                  type: change
+                type: column
+            span:
+              offset: -11month
+              start: month
+            type: custom:apexcharts-card
+        column_span: 3
+        type: grid
+      - cards:
+          - heading: Stromaufnahme je Phase
+            heading_style: title
+            icon: mdi:sine-wave
+            type: heading
+          - apex_config:
+              chart:
+                height: 300
+              legend:
+                show: true
+              tooltip:
+                shared: true
+            graph_span: 24h
+            grid_options:
+              columns: full
+            header:
+              colorize_states: true
+              show: true
+              show_states: true
+              title: Letzte 24 Stunden · W
+            series:
+              - color: '#42A5F5'
+                entity: sensor.shellyem3_xxxxxxxxxxxx_channel_a_power  # TODO: Anpassen (eigene Strommessung)
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Phase 1
+                stroke_width: 2
+              - color: '#FF7043'
+                entity: sensor.shellyem3_xxxxxxxxxxxx_channel_b_power  # TODO: Anpassen (eigene Strommessung)
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Phase 2
+                stroke_width: 2
+              - color: '#66BB6A'
+                entity: sensor.shellyem3_xxxxxxxxxxxx_channel_c_power  # TODO: Anpassen (eigene Strommessung)
+                group_by:
+                  duration: 5min
+                  fill: last
+                  func: avg
+                name: Phase 3
+                stroke_width: 2
+            type: custom:apexcharts-card
+        column_span: 3
+        type: grid
+    theme: ios-dark-mode-blue-red
+    title: Energie
+    type: sections
+  - dense_section_placement: true
+    icon: mdi:wrench-clock
+    max_columns: 3
+    path: wartung
+    sections:
+      - cards:
+          - heading: Betriebsstunden
+            heading_style: title
+            icon: mdi:timer-outline
+            type: heading
+          - entity: sensor.dimplex_wp_betriebsstunden_verdichter_1
+            grid_options:
+              columns: 6
+            icon: mdi:engine
+            name: Verdichter
+            type: tile
+          - entity: sensor.dimplex_wp_betriebsstunden_primaerpumpe
+            grid_options:
+              columns: 6
+            icon: mdi:fan
+            name: Ventilator
+            type: tile
+          - entity: sensor.dimplex_wp_betriebsstunden_heizungspumpe
+            grid_options:
+              columns: 6
+            icon: mdi:pump
+            name: Heizkreispumpe M13
+            type: tile
+          - entity: sensor.dimplex_wp_betriebsstunden_warmwasserpumpe
+            grid_options:
+              columns: 6
+            icon: mdi:water-pump
+            name: Warmwasserpumpe M18
+            type: tile
+          - entity: sensor.dimplex_wp_betriebsstunden_2_waermeerzeuger
+            grid_options:
+              columns: 6
+            icon: mdi:heating-coil
+            name: 2. Wärmeerzeuger
+            type: tile
+          - entity: sensor.dimplex_wp_betriebsstunden_heizstab
+            grid_options:
+              columns: 6
+            icon: mdi:heating-coil
+            name: Flanschheizung
+            type: tile
+          - heading: Verdichterstarts
+            heading_style: subtitle
+            icon: mdi:counter
+            type: heading
+          - entity: sensor.dimplex_wp_taktungen_verdichter_gesamt
+            grid_options:
+              columns: 12
+            icon: mdi:counter
+            name: Gesamt
+            type: tile
+          - entity: sensor.dimplex_wp_taktungen_verdichter_heizen
+            grid_options:
+              columns: 6
+            icon: mdi:radiator
+            name: Heizen
+            type: tile
+          - entity: sensor.dimplex_wp_taktungen_verdichter_warmwasser
+            grid_options:
+              columns: 6
+            icon: mdi:water-boiler
+            name: Warmwasser
+            type: tile
+        type: grid
+      - cards:
+          - heading: Meldungen
+            heading_style: title
+            icon: mdi:message-alert-outline
+            type: heading
+          - entity: sensor.dimplex_wp_status
+            grid_options:
+              columns: 6
+            icon: mdi:information-outline
+            name: Status
+            type: tile
+          - entity: sensor.dimplex_wp_statusmeldung
+            grid_options:
+              columns: 6
+            icon: mdi:message-text-outline
+            name: Statusmeldung
+            type: tile
+          - color: amber
+            entity: sensor.dimplex_wp_sperrmeldung
+            grid_options:
+              columns: 6
+            icon: mdi:lock-alert-outline
+            name: Sperrmeldung
+            type: tile
+          - color: red
+            entity: sensor.dimplex_wp_stoermeldung
+            grid_options:
+              columns: 6
+            icon: mdi:alert-octagon-outline
+            name: Störmeldung
+            type: tile
+          - color: red
+            entity: sensor.dimplex_wp_sensorfehler
+            grid_options:
+              columns: 12
+            icon: mdi:thermometer-alert
+            name: Sensorfehler
+            type: tile
+          - color: red
+            entity: binary_sensor.dimplex_wp_stoerung
+            grid_options:
+              columns: 6
+            icon: mdi:alert-circle-outline
+            name: Störung
+            type: tile
+          - color: red
+            entity: binary_sensor.dimplex_wp_stoermeldeausgang
+            grid_options:
+              columns: 6
+            icon: mdi:alarm-light-outline
+            name: Störmeldeausgang
+            type: tile
+        type: grid
+      - cards:
+          - heading: Netz und Freigaben
+            heading_style: title
+            icon: mdi:transmission-tower
+            type: heading
+          - entity: sensor.dimplex_wp_sg_ready_modus
+            grid_options:
+              columns: 12
+            icon: mdi:solar-power-variant
+            name: SG Ready
+            type: tile
+          - entity: binary_sensor.dimplex_wp_smartgrid_eingang_1
+            grid_options:
+              columns: 6
+            icon: mdi:numeric-1-box-outline
+            name: SG-Eingang 1
+            type: tile
+          - entity: binary_sensor.dimplex_wp_smartgrid_eingang_2
+            grid_options:
+              columns: 6
+            icon: mdi:numeric-2-box-outline
+            name: SG-Eingang 2
+            type: tile
+          - color: red
+            entity: binary_sensor.dimplex_wp_evu_sperre
+            grid_options:
+              columns: 12
+            icon: mdi:transmission-tower-off
+            name: EVU-Sperre
+            type: tile
+          - heading: Heute
+            heading_style: subtitle
+            icon: mdi:calendar-today
+            type: heading
+          - color: deep-orange
+            entity: sensor.dimplex_wp_verdichterstarts_heute
+            grid_options:
+              columns: 6
+            icon: mdi:counter
+            name: Verdichterstarts
+            type: tile
+          - color: deep-orange
+            entity: sensor.dimplex_wp_verdichter_laufzeit_heute
+            grid_options:
+              columns: 6
+            icon: mdi:timer-outline
+            name: Laufzeit
+            type: tile
+          - color: deep-orange
+            entity: sensor.dimplex_wp_laufzeit_je_start_heute
+            grid_options:
+              columns: 6
+            icon: mdi:timer-sand
+            name: Laufzeit je Start
+            type: tile
+            visibility:
+              - above: 0
+                condition: numeric_state
+                entity: sensor.dimplex_wp_verdichterstarts_heute
+          - color: cyan
+            entity: sensor.dimplex_wp_abtauungen_heute
+            grid_options:
+              columns: 6
+            icon: mdi:snowflake-melt
+            name: Abtauungen
+            type: tile
+        type: grid
+      - cards:
+          - heading: Schaltverlauf
+            heading_style: title
+            icon: mdi:chart-timeline
+            type: heading
+          - entities:
+              - entity: binary_sensor.dimplex_wp_verdichter_1
+                name: Verdichter
+              - entity: binary_sensor.dimplex_wp_anforderung_heizen
+                name: Anforderung Heizen
+              - entity: binary_sensor.dimplex_wp_anforderung_warmwasser
+                name: Anforderung Warmwasser
+              - entity: binary_sensor.dimplex_wp_heizungspumpe_m13
+                name: Heizkreispumpe M13
+              - entity: binary_sensor.dimplex_wp_zusatzumwaelzpumpe
+                name: Erzeugerkreispumpe M16
+              - entity: binary_sensor.dimplex_wp_warmwasserpumpe_m18
+                name: Warmwasserpumpe M18
+              - entity: binary_sensor.dimplex_wp_abtauung
+                name: Abtauung
+            grid_options:
+              columns: full
+            hours_to_show: 48
+            type: history-graph
+        column_span: 3
+        type: grid
+    theme: ios-dark-mode-blue-red
+    title: Wartung
+    type: sections

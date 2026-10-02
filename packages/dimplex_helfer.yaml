@@ -1,0 +1,393 @@
+###############################################################################
+# DIMPLEX WÄRMEPUMPE - HELFER, KLARTEXT-MELDUNGEN, TAGESWERTE, WARNUNGEN
+# Datei: /config/packages/dimplex_helfer.yaml
+#
+# In der Ursprungsanlage sind diese Helfer und die zwei Warn-Automationen über
+# die Oberfläche angelegt (Einstellungen -> Geräte & Dienste -> Helfer). Hier
+# stehen sie als YAML, damit sich alles aus Dateien nachbauen lässt.
+# Einstellungen und Templates sind unverändert übernommen. Die YAML-Fassung
+# selbst lief so noch nicht im Dauerbetrieb.
+#
+# Wer die Helfer lieber über die Oberfläche anlegt: gleiche Namen verwenden,
+# dann entstehen dieselben entity_ids.
+#
+# VOR DEM EINSATZ ANPASSEN ("# TODO: Anpassen"):
+#   - notify.mobile_app_dein_geraet: eigener Benachrichtigungsdienst
+#   - Warnschwellen (Anlagendruck, Verdichterstarts pro Tag)
+###############################################################################
+
+# -----------------------------------------------------------------------------
+# BEDIEN-HELFER
+# -----------------------------------------------------------------------------
+input_select:
+  dimplex_betriebsmodus_steuerung:
+    name: "Dimplex Betriebsmodus Steuerung"
+    icon: mdi:home-thermometer-outline
+    # "Kühlen" (Modus 5) fehlt hier absichtlich. Die Synchronisierung
+    # übernimmt nur Modi, die in dieser Liste stehen.
+    options:
+      - Sommer
+      - Winter
+      - Urlaub
+      - Party
+      - Heizstab
+
+input_number:
+  dimplex_warmwasser_soll_steuerung:
+    name: "Warmwasser Solltemperatur"
+    min: 30
+    max: 60  # TODO: Anpassen - nicht höher als für die eigene Anlage sinnvoll
+    step: 0.5
+    mode: slider
+    unit_of_measurement: "°C"
+
+  # 0 = Normal, 1 = Absenkung, 2 = Anhebung (Register 5065)
+  dimplex_hk1_absenkung_anhebung:
+    name: "Dimplex HK1 Absenk/Anhebung"
+    min: 0
+    max: 2
+    step: 1
+    mode: slider
+    initial: 0
+
+  # Wert, auf den der Sollwert-Wächter und "Boost aus" zurückstellen
+  dimplex_warmwasser_normal:
+    name: "Warmwasser Normaltemperatur"
+    min: 30
+    max: 60
+    step: 0.5
+    mode: box
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer-water
+
+  dimplex_warmwasser_boost_temp:
+    name: "Warmwasser Boost-Temperatur"
+    min: 45
+    max: 60
+    step: 0.5
+    mode: box
+    unit_of_measurement: "°C"
+    icon: mdi:water-plus
+
+input_boolean:
+  dimplex_warmwasser_boost:
+    name: "Dimplex Warmwasser Boost"
+    icon: mdi:water-boiler-alert
+    # Nach einem HA-Neustart ist der Boost immer aus.
+    initial: false
+
+# -----------------------------------------------------------------------------
+# KLARTEXT ZU DEN MELDECODES
+# Tabellen aus den Dimplex-Datenpunktlisten (Software L/M). An der Anlage
+# einzeln bestätigt ist bisher nur Sperrcode 9 (Pumpenvorlauf). Unbekannte
+# Codes erscheinen als "Code N".
+# -----------------------------------------------------------------------------
+template:
+  - sensor:
+      # Register 104
+      - name: "Dimplex_WP Sperrmeldung"
+        unique_id: dimplex_sperrmeldung_text
+        icon: mdi:lock-alert-outline
+        availability: "{{ has_value('sensor.dimplex_wp_sperrmeldung_raw') }}"
+        state: >-
+          {% set m = {
+               0: 'keine Sperre',
+               2: 'Volumenstrom',
+               5: 'Funktionskontrolle',
+               6: 'Einsatzgrenze HT',
+               7: 'Systemkontrolle',
+               8: 'Verzögerung Umschaltung Kühlen',
+               9: 'Pumpenvorlauf',
+               10: 'Mindeststandzeit',
+               11: 'Netzbelastung',
+               12: 'Schaltspielsperre',
+               13: 'Warmwasser Nacherwärmung',
+               14: 'Regenerativ',
+               15: 'EVU-Sperre',
+               16: 'Sanftanlasser',
+               17: 'Durchfluss',
+               18: 'Einsatzgrenze Wärmepumpe',
+               19: 'Hochdruck',
+               20: 'Niederdruck',
+               21: 'Einsatzgrenze Wärmequelle',
+               23: 'Systemgrenze',
+               24: 'Last Primärkreis',
+               25: 'Sperre extern',
+               31: 'Aufwärmen',
+               33: 'EvD Initialisierung',
+               34: '2. Wärmeerzeuger freigegeben',
+               35: 'Störung'
+             } %}
+          {% set c = states('sensor.dimplex_wp_sperrmeldung_raw') | int(-1) %}
+          {{ m.get(c, 'Code ' ~ c) }}
+
+      # Register 105
+      - name: "Dimplex_WP Stoermeldung"
+        unique_id: dimplex_stoermeldung_text
+        icon: mdi:alert-octagon-outline
+        availability: "{{ has_value('sensor.dimplex_wp_stoermeldung_raw') }}"
+        state: >-
+          {% set m = {
+               0: 'kein Fehler',
+               1: 'Fehler N17.1',
+               2: 'Fehler N17.2',
+               3: 'Fehler N17.3',
+               4: 'Fehler N17.4',
+               6: 'Elektronisches Expansionsventil',
+               10: 'WPIO',
+               12: 'Inverter',
+               13: 'WQIF',
+               15: 'Sensorik',
+               16: 'Niederdruck Sole',
+               19: 'Primärkreis',
+               20: 'Abtauen',
+               21: 'Niederdruck Sole',
+               22: 'Warmwasser',
+               23: 'Last Verdichter',
+               24: 'Codierung',
+               25: 'Niederdruck',
+               26: 'Frostschutz',
+               28: 'Hochdruck',
+               29: 'Temperaturdifferenz',
+               30: 'Heißgasthermostat',
+               31: 'Durchfluss'
+             } %}
+          {% set c = states('sensor.dimplex_wp_stoermeldung_raw') | int(-1) %}
+          {{ m.get(c, 'Code ' ~ c) }}
+
+      # Register 106
+      - name: "Dimplex_WP Sensorfehler"
+        unique_id: dimplex_sensorfehler_text
+        icon: mdi:thermometer-alert
+        availability: "{{ has_value('sensor.dimplex_wp_sensorfehler_raw') }}"
+        state: >-
+          {% set m = {
+               0: 'kein Fehler',
+               1: 'Außenfühler (R1)',
+               2: 'Rücklauffühler (R2)',
+               3: 'Warmwasserfühler (R3)',
+               4: 'Codierung (R7)',
+               5: 'Vorlauffühler (R9)',
+               6: '2. Heizkreisfühler (R5)',
+               7: '3. Heizkreisfühler (R13)',
+               8: 'Regenerativfühler (R13)',
+               9: 'Raumfühler 1',
+               10: 'Raumfühler 2',
+               11: 'Fühler Wärmequellenaustritt (R6)',
+               12: 'Fühler Wärmequelleneintritt (R24)',
+               14: 'Kollektorfühler (R23)',
+               15: 'Niederdrucksensor (R25)',
+               16: 'Hochdrucksensor (R26)',
+               17: 'Raumfeuchte 1',
+               18: 'Raumfeuchte 2',
+               19: 'Fühler Frostschutz-Kälte',
+               20: 'Heißgas',
+               21: 'Rücklauffühler (R2.1)',
+               22: 'Schwimmbadfühler (R20)',
+               23: 'Vorlauffühler Kühlen passiv (R11)',
+               24: 'Rücklauffühler Kühlen passiv (R4)',
+               26: 'Fühler Solarspeicher (R22)',
+               28: 'Anforderungsfühler Heizen (R2.2)',
+               29: 'RTM Econ',
+               30: 'Anforderungsfühler Kühlen (R39)'
+             } %}
+          {% set c = states('sensor.dimplex_wp_sensorfehler_raw') | int(-1) %}
+          {{ m.get(c, 'Code ' ~ c) }}
+
+      # Mittlere Laufzeit je Verdichterstart heute. Erst ab dem ersten Start
+      # verfügbar, sonst wäre es eine Division durch 0.
+      - name: "Dimplex_WP Laufzeit je Start heute"
+        unique_id: dimplex_laufzeit_je_start_heute
+        unit_of_measurement: "min"
+        device_class: duration
+        state_class: measurement
+        availability: >-
+          {{ has_value('sensor.dimplex_wp_verdichter_laufzeit_heute')
+             and states('sensor.dimplex_wp_verdichterstarts_heute') | int(0) > 0 }}
+        state: >-
+          {{ (states('sensor.dimplex_wp_verdichter_laufzeit_heute') | float(0) * 60
+              / (states('sensor.dimplex_wp_verdichterstarts_heute') | float(1))) | round(0) }}
+
+      # Arbeitszahl der letzten 7 Tage: Wärme laut Wärmepumpe geteilt durch
+      # gemessenen Strom. Solange die 7-Tage-Werte noch nicht belastbar sind,
+      # ersatzweise der aktuelle COP.
+      - name: "WP COP"
+        unique_id: wp_cop_7_tage
+        icon: mdi:gauge
+        state_class: measurement
+        availability: >-
+          {% set w = states('sensor.wp_warme_7_tage') | float(0) %}
+          {% set e = states('sensor.wp_strom_7_tage') | float(0) %}
+          {% set cov = state_attr('sensor.wp_warme_7_tage', 'age_coverage_ratio') | float(0) %}
+          {% set az = (w / e) if e > 0 else 0 %}
+          {% set live = states('sensor.dimplex_wp_cop') | float(0) %}
+          {{ (cov >= 0.7 and w >= 3 and 1 <= az <= 7) or (1 <= live <= 8) }}
+        state: >-
+          {% set w = states('sensor.wp_warme_7_tage') | float(0) %}
+          {% set e = states('sensor.wp_strom_7_tage') | float(0) %}
+          {% set cov = state_attr('sensor.wp_warme_7_tage', 'age_coverage_ratio') | float(0) %}
+          {% set az = (w / e) if e > 0 else 0 %}
+          {% set live = states('sensor.dimplex_wp_cop') | float(0) %}
+          {% if cov >= 0.7 and w >= 3 and 1 <= az <= 7 %}{{ az | round(2) }}
+          {% elif 1 <= live <= 8 %}{{ live | round(2) }}
+          {% endif %}
+
+# -----------------------------------------------------------------------------
+# TAGESWERTE, 7-TAGE-WERTE, STROMZÄHLER
+# -----------------------------------------------------------------------------
+sensor:
+  - platform: history_stats
+    name: "Dimplex_WP Verdichterstarts heute"
+    unique_id: dimplex_verdichterstarts_heute
+    entity_id: binary_sensor.dimplex_wp_verdichter_1
+    state: "on"
+    type: count
+    start: "{{ today_at() }}"
+    end: "{{ now() }}"
+
+  # Ergebnis in Stunden
+  - platform: history_stats
+    name: "Dimplex_WP Verdichter Laufzeit heute"
+    unique_id: dimplex_verdichter_laufzeit_heute
+    entity_id: binary_sensor.dimplex_wp_verdichter_1
+    state: "on"
+    type: time
+    start: "{{ today_at() }}"
+    end: "{{ now() }}"
+
+  - platform: history_stats
+    name: "Dimplex_WP Abtauungen heute"
+    unique_id: dimplex_abtauungen_heute
+    entity_id: binary_sensor.dimplex_wp_abtauung
+    state: "on"
+    type: count
+    start: "{{ today_at() }}"
+    end: "{{ now() }}"
+
+  # Stromzähler der Wärmepumpe: Leistung (W) aufintegriert zu kWh.
+  # Entfällt, wenn die eigene Strommessung schon einen kWh-Zähler liefert;
+  # dann im Dashboard und unten bei "WP Strom 7 Tage" den eigenen Zähler
+  # eintragen.
+  - platform: integration
+    name: "Heizungverbrauch"
+    unique_id: heizungverbrauch_kwh
+    source: sensor.heizung_stormverbrauch
+    method: left
+    round: 2
+    unit_prefix: k
+    unit_time: h
+
+  - platform: statistics
+    name: "WP Wärme 7 Tage"
+    unique_id: wp_waerme_7_tage
+    entity_id: sensor.dimplex_wp_waermemenge_gesamt
+    state_characteristic: change
+    max_age:
+      days: 7
+    sampling_size: 5000
+    keep_last_sample: true
+    precision: 1
+
+  - platform: statistics
+    name: "WP Strom 7 Tage"
+    unique_id: wp_strom_7_tage
+    entity_id: sensor.heizungverbrauch
+    state_characteristic: change
+    max_age:
+      days: 7
+    sampling_size: 20000
+    keep_last_sample: true
+    precision: 2
+
+# -----------------------------------------------------------------------------
+# WARNUNGEN
+# Die Schwellen sind Schätzwerte. Beide Automationen haben in der
+# Ursprungsanlage noch nie ausgelöst, die Zustellung ist also ungetestet.
+# -----------------------------------------------------------------------------
+automation:
+  # Meldet, wenn der Heizwasser-Anlagendruck 15 Minuten lang zu niedrig oder
+  # zu hoch ist. Tägliche Erinnerung um 9 Uhr, solange der Druck zu niedrig
+  # ist - das fängt auch HA-Neustarts ab, bei denen der 15-Minuten-Timer
+  # verloren geht.
+  # Hinweis: Bei laufenden Pumpen fällt der angezeigte Druck um etwa 0,2 bar.
+  - id: dimplex_anlagendruck_warnung
+    alias: "Dimplex: Anlagendruck Warnung"
+    # single: eine Meldung reicht, parallele Läufe wären nur Wiederholungen.
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.dimplex_wp_heizwasser_anlagendruck
+        below: 1.2  # TODO: Anpassen
+        for:
+          minutes: 15
+        id: tief
+      - trigger: numeric_state
+        entity_id: sensor.dimplex_wp_heizwasser_anlagendruck
+        above: 2.6  # TODO: Anpassen
+        for:
+          minutes: 15
+        id: hoch
+      - trigger: time
+        at: "09:00:00"
+        id: erinnerung
+    conditions:
+      - condition: or
+        conditions:
+          - condition: trigger
+            id:
+              - tief
+              - hoch
+          - condition: numeric_state
+            entity_id: sensor.dimplex_wp_heizwasser_anlagendruck
+            below: 1.2  # TODO: Anpassen (gleicher Wert wie oben)
+    actions:
+      - variables:
+          text: >-
+            {{ 'Anlagendruck zu hoch: ' if trigger.id == 'hoch' else 'Anlagendruck zu niedrig: ' }}{{
+            states('sensor.dimplex_wp_heizwasser_anlagendruck') | replace('.', ',') }} bar.
+            {{ 'Sicherheitsventil und Ausdehnungsgefäß prüfen.' if trigger.id == 'hoch'
+               else 'Heizungswasser nachfüllen und auf Leck prüfen.' }}
+      - action: notify.mobile_app_dein_geraet  # TODO: Anpassen (Empfänger)
+        continue_on_error: true
+        data:
+          title: "Wärmepumpe"
+          message: "{{ text }}"
+      - action: persistent_notification.create
+        data:
+          notification_id: dimplex_anlagendruck
+          title: "Wärmepumpe: Anlagendruck"
+          message: "{{ text }}"
+
+  # Meldet einmal am Tag, wenn der Verdichter öfter als 10-mal gestartet ist
+  # (Heizen und Warmwasser zusammen). Der Zähler beginnt um Mitternacht bei 0.
+  # Die Bedingung verhindert eine Wiederholung nach jedem HA-Neustart: Nach
+  # "nicht verfügbar" wäre der Trigger sonst sofort wieder scharf.
+  - id: dimplex_takt_warnung
+    alias: "Dimplex: Takt-Warnung"
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.dimplex_wp_verdichterstarts_heute
+        above: 10  # TODO: Anpassen
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.platform == 'numeric_state'
+             and trigger.from_state is not none
+             and is_number(trigger.from_state.state) }}
+    actions:
+      - variables:
+          text: >-
+            Die Wärmepumpe taktet:
+            {{ states('sensor.dimplex_wp_verdichterstarts_heute') }} Verdichterstarts heute,
+            im Mittel {{ states('sensor.dimplex_wp_laufzeit_je_start_heute') }} Minuten je Start.
+      - action: notify.mobile_app_dein_geraet  # TODO: Anpassen (Empfänger)
+        continue_on_error: true
+        data:
+          title: "Wärmepumpe"
+          message: "{{ text }}"
+      - action: persistent_notification.create
+        data:
+          notification_id: dimplex_takten
+          title: "Wärmepumpe: Takten"
+          message: "{{ text }}"
