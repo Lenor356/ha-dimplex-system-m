@@ -1,4 +1,4 @@
-# Dimplex System M in Home Assistant
+# Dimplex System M mit NWPM Touch in Home Assistant
 
 > **English summary:** Home Assistant configuration for a Dimplex System M air/water heat pump
 > connected via Modbus TCP through the NWPM Touch extension module: Modbus sensors including several registers that
